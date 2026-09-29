@@ -33,6 +33,26 @@ dort unter „Assets“ die Datei **`RewardsTool-….zip`** herunterladen (nicht
 
 ---
 
+## So sieht es aus
+
+Das **Webinterface** zeigt Punktestand, Suchfortschritt, offene Aufgaben und alle bisherigen Läufe –
+und lässt dich Läufe starten und dich bei Microsoft anmelden, alles im Browser.
+*(Screenshots mit Beispieldaten.)*
+
+![Übersicht: Punktestand, PC-Suche, offene Aufgaben und Verlauf](docs/screenshots/uebersicht.png)
+
+<table>
+  <tr>
+    <td width="68%"><img src="docs/screenshots/laufender-lauf.png" alt="Laufender Lauf mit Live-Protokoll"><br><sub><b>Laufender Lauf</b> mit Live-Protokoll</sub></td>
+    <td width="32%"><img src="docs/screenshots/handy.png" alt="Ansicht auf dem Handy"><br><sub><b>Auf dem Handy</b></sub></td>
+  </tr>
+</table>
+
+![Microsoft-Anmeldung direkt im Webinterface](docs/screenshots/microsoft-anmeldung.png)
+<sub><b>Microsoft-Anmeldung im Webinterface:</b> Live-Bild des Browsers – hineinklicken und tippen wie gewohnt.</sub>
+
+---
+
 ## Welche Variante passt zu dir?
 
 | | **A: Windows-PC** | **B: Linux-Server** (z. B. Heimserver, Raspberry Pi 64-Bit) |
@@ -130,6 +150,10 @@ Ab jetzt läuft alles automatisch. Den Server musst du nicht mehr per PuTTY anfa
 ---
 
 ## Das Webinterface
+
+Beim **allerersten Aufruf** legst du ein Passwort für das Webinterface fest – danach meldest du dich damit an:
+
+<img src="docs/screenshots/passwort.png" alt="Passwort für das Webinterface festlegen" width="360">
 
 **Oben:** Punktestand, Fortschritt der PC-Suche, letzter Lauf, nächster geplanter Lauf.
 Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbeitet.

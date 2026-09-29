@@ -16,7 +16,7 @@ NAME = "RewardsTool"
 # Nur diese Dateien kommen in das Paket
 INCLUDE = [
     "main.py", "webui.py", "config.json", "requirements.txt", "README.md", "TECHNIK.md", ".gitignore", "LICENSE",
-    "Setup.bat", "rewards/*.py", "web/index.html", "deploy/install.sh", "windows/*.bat", "windows/*.ps1",
+    "Setup.bat", "rewards/*.py", "web/index.html", "deploy/install.sh", "windows/*.bat", "windows/*.ps1", "docs/screenshots/*.png",
 ]
 # Diese Namen dürfen nirgends im Paket auftauchen
 FORBIDDEN_PARTS = {"profile", "data", "logs", "debug", ".venv", ".claude", "__pycache__", "dist"}
