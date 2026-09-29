@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RewardsTool</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1c1e21; --muted: #65676b; --border: #dfe1e5;
+    --accent: #0f6cbd; --accent-text: #ffffff; --ok: #107c10; --warn: #b35c00; --err: #c50f1f;
+    --track: #e7e9ec; --code: #f0f2f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --card: #222326; --text: #e8e9eb; --muted: #a0a3a8; --border: #36383c;
+      --accent: #4a9ae8; --accent-text: #0b1520; --ok: #54b054; --warn: #e3a04f; --err: #f1707b;
+      --track: #34363a; --code: #1b1c1e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--card);
+           border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 16px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; min-width: 0; }
+  .card h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+             color: var(--muted); margin: 0 0 8px; }
+  .big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin: 8px 0 4px; }
+  .bar > div { height: 100%; background: var(--accent); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600;
+           border: 1px solid currentColor; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .err { color: var(--err); }
+  button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
+           background: var(--card); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  ul.tasks { list-style: none; padding: 0; margin: 0; }
+  ul.tasks li { padding: 6px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; }
+  ul.tasks li:first-child { border-top: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; border-top: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin: 0;
+        max-height: 360px; overflow: auto; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+  #runLog { line-height: 1.45; max-height: calc(10 * 1.45em + 20px); }  /* 10 Zeilen + Innenabstand */
+  a { color: var(--accent); cursor: pointer; }
+  .center { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  .center form { width: 100%; max-width: 360px; display: grid; gap: 10px; }
+  input { font: inherit; padding: 9px 11px; border-radius: 6px; border: 1px solid var(--border);
+          background: var(--card); color: var(--text); width: 100%; }
+  .hidden { display: none !important; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text);
+           color: var(--bg); padding: 10px 16px; border-radius: 8px; z-index: 50; max-width: 90vw; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 20; display: grid; place-items: center; padding: 12px; }
+  .modal .card { width: min(1100px, 100%); max-height: 96vh; overflow: auto; display: grid; gap: 10px; }
+  #msScreen { width: 100%; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; outline: none; background: #fff; }
+  #msScreen:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row input { flex: 1; min-width: 160px; width: auto; }
+  .tabs button.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- Webinterface-Passwort festlegen / anmelden -->
+<div id="authView" class="center hidden">
+  <form id="authForm" class="card">
+    <h1 style="margin:0;font-size:20px">RewardsTool</h1>
+    <p id="authHint" class="muted" style="margin:0"></p>
+    <input id="authPw" type="password" autocomplete="current-password" placeholder="Passwort" required>
+    <input id="authPw2" type="password" autocomplete="new-password" placeholder="Passwort wiederholen" class="hidden">
+    <button class="primary" type="submit" id="authBtn">Anmelden</button>
+    <p id="authErr" class="err" style="margin:0"></p>
+  </form>
+</div>
+
+<!-- Hauptansicht -->
+<div id="appView" class="hidden">
+  <header>
+    <h1>RewardsTool</h1>
+    <span id="busyBadge" class="badge ok">Bereit</span>
+    <button id="logoutBtn" title="Vom Webinterface abmelden">Abmelden</button>
+  </header>
+  <main>
+    <div id="loginWarn" class="card hidden" style="border-color:var(--err)">
+      <strong class="err">Nicht bei Microsoft angemeldet.</strong>
+      <span class="muted"> Läufe sammeln erst wieder Punkte, wenn du dich über „Microsoft-Anmeldung“ neu anmeldest.</span>
+    </div>
+
+    <div class="grid">
+      <div class="card"><h2>Punktestand</h2><div class="big" id="points">–</div>
+        <div class="muted" id="updated"></div></div>
+      <div class="card"><h2>PC-Suche heute</h2><div class="big" id="searchText">–</div>
+        <div class="bar"><div id="searchBar" style="width:0"></div></div></div>
+      <div class="card"><h2>Letzter Lauf</h2><div id="lastRun" class="muted">–</div></div>
+      <div class="card"><h2>Nächster geplanter Lauf</h2><div id="nextRun" class="muted">–</div></div>
+    </div>
+
+    <div class="card">
+      <div class="actions">
+        <button class="primary" id="runBtn">Lauf starten</button>
+        <button id="refreshBtn">Status aktualisieren</button>
+        <button id="msBtn">Microsoft-Anmeldung</button>
+      </div>
+    </div>
+
+    <div id="runCard" class="card hidden">
+      <h2>Laufender Lauf <span class="muted" id="runInfo"></span></h2>
+      <pre id="runLog"></pre>
+    </div>
+
+    <div class="grid" id="sections"></div>
+
+    <div class="card">
+      <h2>Verlauf</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Start</th><th>Auslöser</th><th>Dauer</th><th>Punkte</th><th>Suche</th><th>Offen</th><th>Ergebnis</th><th></th></tr></thead>
+        <tbody id="historyBody"></tbody>
+      </table></div>
+    </div>
+  </main>
+</div>
+
+<!-- Log-Ansicht -->
+<div id="logModal" class="modal hidden">
+  <div class="card">
+    <div class="row"><strong style="flex:1" id="logTitle"></strong><button onclick="hide('logModal')">Schließen</button></div>
+    <pre id="logText" style="max-height:75vh"></pre>
+  </div>
+</div>
+
+<!-- Microsoft-Anmeldung: Live-Bild des Server-Browsers -->
+<div id="msModal" class="modal hidden">
+  <div class="card">
+    <div class="row">
+      <strong style="flex:1">Microsoft-Anmeldung</strong>
+      <button onclick="msGoto('rewards')">Rewards-Seite</button>
+      <button onclick="msGoto('bing')">bing.com</button>
+    </div>
+    <div class="muted">Klicke ins Bild und tippe wie gewohnt. Melde dich auf der Rewards-Seite an und danach auf bing.com
+      oben rechts. Für Passwort-Manager: Text unten einfügen und „Senden“. Dein Microsoft-Passwort wird nicht gespeichert.</div>
+    <div class="row tabs" id="msTabs"></div>
+    <img id="msScreen" tabindex="0" alt="Browser auf dem Server">
+    <div class="row">
+      <input id="msInput" type="password" placeholder="Text ins aktive Feld senden (z. B. aus dem Passwort-Manager)" autocomplete="off">
+      <button onclick="msSendText()">Senden</button>
+      <button onclick="msKey('Enter')">Enter</button>
+      <button onclick="msKey('Tab')">Tab</button>
+      <button onclick="msKey('Backspace')">⌫</button>
+    </div>
+    <div class="row">
+      <button class="primary" onclick="msFinish()">Fertig – Anmeldung prüfen</button>
+      <button onclick="msCancel()">Abbrechen</button>
+      <span id="msMsg" class="muted"></span>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const show = id => $(id).classList.remove('hidden');
+const hide = id => $(id).classList.add('hidden');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtNum = n => n == null ? '–' : Number(n).toLocaleString('de-DE');
+const fmtTime = iso => iso ? new Date(iso).toLocaleString('de-DE', {dateStyle: 'short', timeStyle: 'short'}) : '–';
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; show('toast');
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => hide('toast'), 4000);
+}
+
+async function call(path, body) {
+  const opts = body === undefined ? {} : {
+    method: 'POST', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'RewardsTool'},
+    body: JSON.stringify(body)
+  };
+  const r = await fetch(path, opts);
+  if (r.status === 401) { location.reload(); throw new Error('nicht angemeldet'); }
+  const data = r.headers.get('content-type')?.includes('json') ? await r.json() : null;
+  if (!r.ok) throw new Error(data?.error || `Fehler ${r.status}`);
+  return data;
+}
+
+// ---------- Webinterface-Anmeldung ----------
+let setupMode = false;
+async function initAuth() {
+  const a = await (await fetch('/api/auth')).json();
+  if (a.logged_in) return startApp();
+  setupMode = !a.configured;
+  $('authHint').textContent = setupMode
+    ? 'Erster Start: Lege ein Passwort für dieses Webinterface fest (mind. 8 Zeichen).'
+    : 'Bitte mit dem Passwort des Webinterfaces anmelden.';
+  $('authPw2').classList.toggle('hidden', !setupMode);
+  $('authPw').autocomplete = setupMode ? 'new-password' : 'current-password';
+  $('authBtn').textContent = setupMode ? 'Passwort festlegen' : 'Anmelden';
+  show('authView'); $('authPw').focus();
+}
+$('authForm').onsubmit = async e => {
+  e.preventDefault(); $('authErr').textContent = '';
+  const pw = $('authPw').value;
+  if (setupMode && pw !== $('authPw2').value) { $('authErr').textContent = 'Passwörter stimmen nicht überein.'; return; }
+  const r = await fetch(setupMode ? '/api/setup' : '/api/login',
+    {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password: pw})});
+  if (r.ok) { hide('authView'); startApp(); }
+  else $('authErr').textContent = (await r.json()).error || 'Fehler';
+};
+$('logoutBtn').onclick = async () => { await call('/api/logout', {}); location.reload(); };
+
+// ---------- Hauptansicht ----------
+let pollTimer = null;
+function startApp() { show('appView'); refreshState(); pollTimer = setInterval(refreshState, 3000); }
+
+async function refreshState() {
+  let s; try { s = await call('/api/state'); } catch { return; }
+  const st = s.status || {};
+  const busy = s.busy;
+  $('busyBadge').textContent = busy || 'Bereit';
+  $('busyBadge').className = 'badge ' + (busy ? 'warn' : 'ok');
+  $('runBtn').disabled = $('refreshBtn').disabled = !!busy;
+  $('msBtn').disabled = !!busy && !s.ms_login;
+
+  $('loginWarn').classList.toggle('hidden', st.logged_in !== false);
+  $('points').textContent = fmtNum(st.points);
+  $('updated').textContent = st.updated ? 'Stand: ' + fmtTime(st.updated) : 'Noch kein Status – „Status aktualisieren“';
+  if (st.search) {
+    $('searchText').textContent = `${st.search[0]} / ${st.search[1]}`;
+    $('searchBar').style.width = Math.min(100, 100 * st.search[0] / st.search[1]) + '%';
+  } else { $('searchText').textContent = '–'; $('searchBar').style.width = '0'; }
+  $('nextRun').textContent = s.next_timer || 'kein Timer gefunden';
+
+  $('sections').innerHTML = (st.sections || []).map(sec => `
+    <div class="card"><h2>${esc(sec.name)}</h2>
+      <div class="big ${sec.done === sec.total ? 'ok' : ''}">${sec.done} / ${sec.total}</div>
+      ${sec.open.length ? `<ul class="tasks">${sec.open.map(o =>
+        `<li><span>${esc(o.title)}</span><span class="muted">${o.points} P.</span></li>`).join('')}</ul>`
+        : '<div class="muted">Alles erledigt</div>'}
+    </div>`).join('');
+
+  if (s.run) {
+    show('runCard');
+    $('runInfo').textContent = `– seit ${fmtTime(s.run.start)} (${s.run.trigger})`;
+    const pre = $('runLog'), atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+    pre.textContent = s.run.log_text;
+    if (atBottom) pre.scrollTop = pre.scrollHeight;
+  } else hide('runCard');
+
+  const h = s.history || [];
+  const last = h[0];
+  $('lastRun').innerHTML = last
+    ? `${fmtTime(last.start)} · ${esc(last.trigger)}<br><span class="${resultClass(last.result)}">${esc(last.result)}</span>${gain(last)}`
+    : '–';
+  $('historyBody').innerHTML = h.map(r => `<tr>
+      <td>${fmtTime(r.start)}</td><td>${esc(r.trigger)}</td><td class="num">${duration(r)}</td>
+      <td class="num">${r.points_after != null ? fmtNum(r.points_after) + gain(r) : '–'}</td>
+      <td class="num">${r.search ? r.search[0] + '/' + r.search[1] : '–'}</td>
+      <td class="num">${r.open ?? '–'}</td>
+      <td class="${resultClass(r.result)}">${esc(r.result)}</td>
+      <td>${r.log ? `<a onclick="openLog('${esc(r.log)}')">Log</a>` : ''}</td></tr>`).join('')
+    || '<tr><td colspan="8" class="muted">Noch keine Läufe</td></tr>';
+}
+const resultClass = r => r === 'ok' ? 'ok' : (r || '').startsWith('übersprungen') ? 'warn' : 'err';
+const gain = r => (r.points_after != null && r.points_before != null)
+  ? ` <span class="muted">(+${fmtNum(r.points_after - r.points_before)})</span>` : '';
+function duration(r) {
+  if (!r.end || !r.start) return '–';
+  const s = Math.round((new Date(r.end) - new Date(r.start)) / 1000);
+  return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60) + ' s';
+}
+async function openLog(name) {
+  $('logTitle').textContent = 'Log ' + name;
+  $('logText').textContent = await (await fetch('/api/log/' + encodeURIComponent(name))).text();
+  show('logModal');
+}
+$('runBtn').onclick = async () => {
+  try { await call('/api/run', {}); toast('Lauf gestartet'); setTimeout(refreshState, 1500); } catch (e) { toast(e.message); }
+};
+$('refreshBtn').onclick = async () => {
+  try { await call('/api/refresh', {}); toast('Status wird aktualisiert …'); setTimeout(refreshState, 1500); } catch (e) { toast(e.message); }
+};
+
+// ---------- Microsoft-Anmeldung ----------
+let msFrameTimer = null, msTabsTimer = null;
+$('msBtn').onclick = async () => {
+  $('msBtn').disabled = true; toast('Browser auf dem Server wird gestartet …');
+  try { await call('/api/ms/start', {}); } catch (e) { toast(e.message); $('msBtn').disabled = false; return; }
+  show('msModal'); $('msMsg').textContent = ''; msLoop(); msTabs(); msTabsTimer = setInterval(msTabs, 3000);
+  $('msScreen').focus();
+};
+function msLoop() {
+  const img = $('msScreen');
+  const next = () => { msFrameTimer = setTimeout(msLoop, 700); };
+  img.onload = next; img.onerror = next;
+  img.src = '/api/ms/frame?t=' + Date.now();
+}
+function msStop() { clearTimeout(msFrameTimer); clearInterval(msTabsTimer); $('msScreen').onload = $('msScreen').onerror = null; hide('msModal'); }
+async function msTabs() {
+  try {
+    const t = await call('/api/ms/tabs');
+    $('msTabs').innerHTML = t.tabs.map((tab, i) =>
+      `<button class="${tab.active ? 'active' : ''}" onclick="msTab(${i})" title="${esc(tab.url)}">${esc(tab.title)}</button>`).join('');
+  } catch {}
+}
+const msTab = async i => { await call('/api/ms/tab', {index: i}); msTabs(); };
+const msGoto = async target => { await call('/api/ms/goto', {target}); };
+const msKey = async key => { await call('/api/ms/key', {key}); $('msScreen').focus(); };
+async function msSendText() {
+  const v = $('msInput').value; if (!v) return;
+  await call('/api/ms/text', {text: v}); $('msInput').value = ''; $('msScreen').focus();
+}
+$('msScreen').addEventListener('click', e => {
+  const img = e.currentTarget, rect = img.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * img.naturalWidth / rect.width;
+  const y = (e.clientY - rect.top) * img.naturalHeight / rect.height;
+  call('/api/ms/click', {x, y}).catch(err => toast(err.message));
+  img.focus();
+});
+$('msScreen').addEventListener('wheel', e => { e.preventDefault(); call('/api/ms/scroll', {dy: e.deltaY}); }, {passive: false});
+// Tastatur: Zeichen werden gesammelt und gebündelt gesendet, Sondertasten einzeln
+let msBuffer = '', msBufferTimer = null;
+const SPECIAL = ['Enter', 'Tab', 'Backspace', 'Delete', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+async function flushBuffer() { const t = msBuffer; msBuffer = ''; if (t) await call('/api/ms/text', {text: t}); }
+$('msScreen').addEventListener('keydown', async e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key.length === 1) {
+    e.preventDefault(); msBuffer += e.key;
+    clearTimeout(msBufferTimer); msBufferTimer = setTimeout(flushBuffer, 150);
+  } else if (SPECIAL.includes(e.key)) {
+    e.preventDefault(); clearTimeout(msBufferTimer); await flushBuffer();
+    await call('/api/ms/key', {key: e.key === 'Tab' && e.shiftKey ? 'Shift+Tab' : e.key});
+  }
+});
+$('msScreen').addEventListener('paste', async e => {
+  e.preventDefault(); const t = e.clipboardData.getData('text'); if (t) await call('/api/ms/text', {text: t});
+});
+async function msFinish() {
+  $('msMsg').textContent = 'Prüfe Anmeldung …';
+  try {
+    const r = await call('/api/ms/finish', {});
+    msStop();
+    toast(r.ok ? `Angemeldet – Punktestand ${fmtNum(r.points)}` : r.error);
+  } catch (e) { $('msMsg').textContent = e.message; }
+  refreshState();
+}
+async function msCancel() { await call('/api/ms/cancel', {}); msStop(); refreshState(); }
+
+initAuth();
+</script>
+</body>
+</html>

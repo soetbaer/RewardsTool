@@ -1,0 +1,18 @@
+# Persönliche Daten – NIEMALS weitergeben oder einchecken
+# angemeldetes Browserprofil (Microsoft-Login!)
+profile/
+# exportierte Login-Cookies
+session.json
+*.session.json
+# Webinterface-Passwort, Verlauf, Status
+data/
+# Protokolle und Screenshots (enthalten Namen und Punktestand)
+logs/
+debug/
+
+# Lokale Umgebung und Build-Ergebnisse
+.venv/
+__pycache__/
+*.pyc
+dist/
+.claude/

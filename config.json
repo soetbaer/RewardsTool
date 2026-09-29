@@ -1,0 +1,67 @@
+{
+  "browser_channel": "msedge",
+  "profile_dir": "profile",
+  "headless": false,
+  "locale": "de-DE",
+  "market": "de-DE",
+  "search": {
+    "points_per_search": 3,
+    "fallback_count": 40,
+    "extra_searches": 3,
+    "delay": 10,
+    "trends_geo": "DE"
+  },
+  "activities": {
+    "delay_seconds": [
+      5,
+      12
+    ],
+    "topic_queries": {
+      "cars": "Gebrauchtwagen Angebote",
+      "couponcodes": "Gutscheincodes aktuell",
+      "homeimprovement": "Heimwerker Tipps Badezimmer renovieren",
+      "streamingservices": "Streaming Dienste Vergleich",
+      "flowerdelivery": "Blumen online bestellen",
+      "jobs": "Jobs in meiner Nähe",
+      "restaurant": "Restaurants in der Nähe",
+      "videogames": "neue Videospiele 2026",
+      "flights": "Flüge nach Lissabon",
+      "hotels": "Hotels in Hamburg",
+      "recipes": "Rezept Kürbissuppe",
+      "weather": "Wettervorhersage morgen",
+      "translate": "übersetze Guten Morgen auf Spanisch",
+      "shopping": "Laufschuhe Angebote",
+      "movies": "Kinofilme diese Woche",
+      "sports": "Bundesliga Ergebnisse",
+      "travel": "Reiseziele Herbst",
+      "realestate": "Wohnung mieten Berlin",
+      "health": "Tipps für besseren Schlaf",
+      "finance": "Microsoft Aktie",
+      "news": "Nachrichten heute",
+      "petsupplies": "Hundefutter kaufen",
+      "pets": "Hundefutter kaufen",
+      "hotel": "Hotels in Hamburg",
+      "jewelry": "Silberkette kaufen",
+      "mattress": "Matratze kaufen",
+      "creditreport": "Schufa Auskunft kostenlos",
+      "cellphoneplans": "Handytarife vergleichen",
+      "cruises": "Kreuzfahrt Angebote",
+      "internetproviders": "Internetanbieter vergleichen",
+      "flight": "Flüge nach Mallorca",
+      "insurance": "Versicherung vergleichen",
+      "carinsurance": "Kfz Versicherung vergleichen",
+      "homeinsurance": "Hausratversicherung vergleichen",
+      "electronics": "Laptop kaufen",
+      "furniture": "Sofa kaufen",
+      "fashion": "Winterjacke Damen",
+      "autoparts": "Autoreifen kaufen",
+      "rentals": "Mietwagen Hamburg",
+      "tickets": "Konzertkarten kaufen",
+      "vacation": "Urlaub buchen"
+    }
+  },
+  "webui": {
+    "host": "0.0.0.0",
+    "port": 3333
+  }
+}

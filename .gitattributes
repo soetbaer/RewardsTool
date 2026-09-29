@@ -1,0 +1,5 @@
+# Zeilenenden fest vorgeben – unabhängig von der Git-Einstellung des Nutzers
+* text=auto
+*.sh  text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
