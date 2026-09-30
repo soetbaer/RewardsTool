@@ -1,6 +1,11 @@
-# RewardsTool
+<p align="center"><img src="web/logo.svg" alt="RewardsTool" width="360"></p>
 
-Sammelt jeden Tag automatisch deine **Microsoft-Rewards-Punkte**, damit du nicht selbst klicken musst.
+<p align="center">
+  Sammelt jeden Tag automatisch deine <b>Microsoft-Rewards-Punkte</b>, damit du nicht selbst klicken musst.<br>
+  <a href="https://github.com/soetbaer/RewardsTool/releases/latest"><img src="https://img.shields.io/github/v/release/soetbaer/RewardsTool?label=Version&color=0f6cbd" alt="Aktuelle Version"></a>
+  <img src="https://img.shields.io/badge/Windows%20%7C%20Linux-lightgrey" alt="Windows und Linux">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/soetbaer/RewardsTool?color=lightgrey" alt="Lizenz"></a>
+</p>
 
 Das Tool erledigt für dich:
 
@@ -12,6 +17,16 @@ Das Tool erledigt für dich:
 | „Weiter verdienen“ (weitere Kacheln, Quizze) | unterschiedlich |
 
 **Nicht** abgedeckt: Punkte, die es nur in der **Bing-App auf dem Handy** gibt (z. B. Nachrichten lesen).
+
+### Funktionen
+
+- 🕗 **Läuft täglich von selbst** – zur Uhrzeit deiner Wahl (Windows-Aufgabenplanung oder Linux-Server)
+- 🖥️ **Webinterface** – Punktestand, offene Aufgaben, Live-Protokoll und Verlauf; auch auf dem Handy
+- 🔑 **Microsoft-Anmeldung im Browser** – ohne Bildschirm am Server, dein Passwort wird nie gespeichert
+- 🔄 **Automatische Updates** – neue Versionen werden angezeigt und per Knopfdruck installiert, auf Wunsch
+  ganz automatisch *(ab Version 1.1.0)*
+- ⚙️ **Einstellungen** – Uhrzeit des täglichen Laufs, Update-Modus, Hell/Dunkel, Passwort ändern
+- 🌙 **Dunkelmodus** – automatisch nach Geräteeinstellung oder fest eingestellt
 
 ---
 
@@ -46,7 +61,14 @@ und lässt dich Läufe starten und dich bei Microsoft anmelden, alles im Browser
     <td width="68%"><img src="docs/screenshots/laufender-lauf.png" alt="Laufender Lauf mit Live-Protokoll"><br><sub><b>Laufender Lauf</b> mit Live-Protokoll</sub></td>
     <td width="32%"><img src="docs/screenshots/handy.png" alt="Ansicht auf dem Handy"><br><sub><b>Auf dem Handy</b></sub></td>
   </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/einstellungen.png" alt="Einstellungen"><br><sub><b>Einstellungen:</b> Uhrzeit, Updates, Darstellung, Passwort</sub></td>
+    <td width="50%"><img src="docs/screenshots/dunkel.png" alt="Dunkelmodus"><br><sub><b>Dunkelmodus</b></sub></td>
+  </tr>
 </table>
+
+![Hinweis auf eine neue Version im Webinterface](docs/screenshots/update.png)
+<sub><b>Updates:</b> Neue Versionen erscheinen oben im Webinterface – „Jetzt aktualisieren“ genügt.</sub>
 
 ![Microsoft-Anmeldung direkt im Webinterface](docs/screenshots/microsoft-anmeldung.png)
 <sub><b>Microsoft-Anmeldung im Webinterface:</b> Live-Bild des Browsers – hineinklicken und tippen wie gewohnt.</sub>
@@ -224,7 +246,11 @@ Ab Version 1.1.0 geht das **im Webinterface**: Gibt es eine neue Version, ersche
 **„Jetzt aktualisieren“** klicken, nach etwa einer Minute ist die neue Version aktiv. Anmeldung, Verlauf und
 deine Werte in der `config.json` bleiben erhalten. Das Tool sucht alle 6 Stunden auf GitHub nach neuen Versionen.
 
-Von Hand (und einmalig beim Wechsel von 1.0.0):
+> [!IMPORTANT]
+> **Kommst du von Version 1.0.0?** Dann musst du das Update auf 1.1.0 **einmal von Hand** installieren (siehe unten) –
+> erst danach hat dein RewardsTool den Updater und alle weiteren Updates laufen über das Webinterface.
+
+Von Hand:
 
 - **Windows:** Neue ZIP in **denselben Ordner** entpacken und Dateien überschreiben lassen. Danach
   `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten.

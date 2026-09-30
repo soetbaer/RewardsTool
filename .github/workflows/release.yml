@@ -1,0 +1,42 @@
+# Baut beim Push eines Tags vX.Y.Z das Paket (pack.py) und legt das GitHub-Release an.
+# Der Updater im Webinterface lädt genau dieses Asset: RewardsTool-X.Y.Z.zip
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tag und VERSION vergleichen
+        run: |
+          VERSION=$(python -c "from rewards.version import VERSION; print(VERSION)")
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME passt nicht zu VERSION $VERSION in rewards/version.py" >&2
+            exit 1
+          fi
+          test -f "docs/releases/$GITHUB_REF_NAME.md" || { echo "docs/releases/$GITHUB_REF_NAME.md fehlt" >&2; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Paket bauen
+        run: python pack.py
+
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/RewardsTool-$VERSION.zip" \
+            --title "RewardsTool $VERSION" \
+            --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
+            --latest

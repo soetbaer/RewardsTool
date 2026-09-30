@@ -82,8 +82,9 @@ das Tag mit `VERSION` in `rewards/version.py`. Installiert wird das Release-Asse
 Während der Installation hält das Webinterface die Profilsperre, ein Timer-Lauf wird dann übersprungen.
 Änderungen an `deploy/install.sh` bzw. `windows/setup.ps1` (Dienste, Aufgaben) wirken erst nach erneutem Ausführen.
 
-**Release erstellen:** `VERSION` in `rewards/version.py` erhöhen, `python pack.py` → `dist/RewardsTool-<Version>.zip`,
-Release mit Tag `v<Version>` anlegen und die ZIP als Asset anhängen.
+**Release erstellen:** `VERSION` in `rewards/version.py` erhöhen, Release-Notes nach `docs/releases/v<Version>.md`
+schreiben, committen und das Tag `v<Version>` pushen. Der Workflow `.github/workflows/release.yml` baut dann mit
+`pack.py` das Paket `RewardsTool-<Version>.zip` und legt das Release mit diesen Notes an.
 
 **Sicherheit:** Das Webinterface spricht unverschlüsseltes HTTP. Nur im eigenen Heimnetz verwenden und
 **keine Portfreigabe im Router** einrichten – bei der Microsoft-Anmeldung laufen die Eingaben über diese Verbindung.
