@@ -272,6 +272,11 @@ def index():
     return send_from_directory(WEB_DIR, "index.html")
 
 
+@app.get("/<any('favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'logo.svg'):name>")
+def brand_asset(name):
+    return send_from_directory(WEB_DIR, name, max_age=86400)
+
+
 @app.get("/api/auth")
 def auth_status():
     return jsonify(configured=auth_configured(), logged_in=logged_in())
