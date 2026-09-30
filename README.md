@@ -255,6 +255,7 @@ Von Hand:
 - **Server:** Diese Befehle laden die aktuelle Version direkt von GitHub und installieren sie:
   ```
   cd ~
+  sudo apt-get install -y curl unzip
   curl -fLO https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip
   unzip -o RewardsTool.zip && rm RewardsTool.zip
   cd RewardsTool && bash deploy/install.sh 08:00
