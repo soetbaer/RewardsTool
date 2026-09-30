@@ -38,7 +38,9 @@ python -m venv .venv
   Punkte erst durch den Klick gutgeschrieben werden. Im geöffneten Tab beantwortet es Quizze (best effort).
   Für „Auf Bing erkunden“ wird passend zum Thema gesucht (`activities.topic_queries` in `config.json`,
   Schlüssel = Thema aus der offerId, z. B. `cars`, `jobs`, oder ein Wort aus dem Kacheltext, z. B. `liedtext`).
-  Der Wert kann auch eine Liste sein, dann wird zufällig ein Begriff gewählt. Fehlt ein Thema, steht im Log
+  Der Wert kann auch eine Liste sein: Der erste Eintrag wird zuerst versucht, danach die übrigen in zufälliger
+  Reihenfolge. Ist die Aufgabe nach dem Lauf noch offen, versucht das Tool bis zu zwei weitere Begriffe aus der Liste
+  (Liedtexte zählen z. B. nur bei Liedern, zu denen Bing eine Liedtext-Box zeigt). Fehlt ein Thema, steht im Log
   „Kein Suchbegriff für Thema …“ – dann dort ergänzen.
 - **Tägliche Suche:** Suchbegriffe aus Google Trends (DE) mit Fallback-Liste. Der Fortschritt
   (`pointsCounters.pc` auf `/earn`) wird alle 10 Suchen geprüft, bis das Limit erreicht ist.
@@ -76,7 +78,8 @@ das Tag mit `VERSION` in `rewards/version.py`. Installiert wird das Release-Asse
 2. Entpacken nach `data/update/new/`. Abbruch bei Pfaden außerhalb des Programmordners oder in `profile/`, `data/`,
    `logs/`, `debug/`, `.venv/`; `rewards/version.py` im Paket muss zur Release-Version passen.
 3. Bisherige Dateien nach `data/update/backup/` sichern, dann überschreiben. `config.json` wird zusammengeführt:
-   neue Einträge kommen dazu, vorhandene Werte bleiben.
+   neue Einträge kommen dazu, selbst geänderte Werte bleiben. Werte, die noch der alten Vorgabe entsprechen
+   (Vergleich mit `config.default.json`, die `pack.py` mit ins Paket legt), bekommen die neue Vorgabe.
 4. Hat sich `requirements.txt` geändert: `pip install` (und Chromium). Schlägt das fehl, wird die Sicherung
    zurückgespielt.
 5. Webinterface neu starten (Linux: `exec` im selben Prozess, damit systemd/xvfb-run passen; Windows: neuer Prozess).

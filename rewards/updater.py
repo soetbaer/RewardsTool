@@ -23,6 +23,8 @@ BASE = runstate.BASE
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 UPDATE_DIR = runstate.DATA / "update"
 STATE_FILE = runstate.DATA / "update.json"
+# Unveränderte Kopie der mit dem Paket ausgelieferten config.json (legt pack.py an) – für den Abgleich beim Update
+CONFIG_DEFAULTS = "config.default.json"
 ASSET_RE = re.compile(r"RewardsTool-.+\.zip")
 ZIP_ROOT = "RewardsTool/"
 MAX_DOWNLOAD = 100 * 1024 * 1024
@@ -136,12 +138,20 @@ def _extract(zip_path: Path, target: Path) -> list[str]:
     return files
 
 
-def _merge_config(new_defaults: dict, current: dict) -> dict:
-    """Neue Einträge aus dem Update übernehmen, vorhandene Werte des Nutzers behalten."""
+def _merge_config(new_defaults: dict, current: dict, old_defaults: dict | None = None) -> dict:
+    """Neue Einträge aus dem Update übernehmen, eigene Werte des Nutzers behalten.
+
+    old_defaults: die mit der bisherigen Version ausgelieferte config.json. Steht beim Nutzer noch genau diese alte
+    Vorgabe, hat er den Wert nicht geändert – dann gilt die neue Vorgabe.
+    """
     out = dict(new_defaults)
+    old_defaults = old_defaults or {}
     for key, value in current.items():
         if isinstance(value, dict) and isinstance(out.get(key), dict):
-            out[key] = _merge_config(out[key], value)
+            old = old_defaults.get(key)
+            out[key] = _merge_config(out[key], value, old if isinstance(old, dict) else None)
+        elif key in out and key in old_defaults and value == old_defaults[key]:
+            pass  # unveränderte alte Vorgabe -> neue Vorgabe
         else:
             out[key] = value
     return out
@@ -194,6 +204,7 @@ def install(progress=lambda msg: None) -> str:
         if (BASE / rel).is_file():
             (backup_dir / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(BASE / rel, backup_dir / rel)
+    old_defaults = runstate.read_json(BASE / CONFIG_DEFAULTS)  # Vorgaben der bisherigen Version (vor dem Überschreiben)
     old_requirements = (BASE / "requirements.txt").read_text(encoding="utf-8") if (BASE / "requirements.txt").exists() else ""
 
     progress("Installiere neue Dateien …")
@@ -203,7 +214,8 @@ def install(progress=lambda msg: None) -> str:
             dest.parent.mkdir(parents=True, exist_ok=True)
             if rel == "config.json" and dest.exists():
                 merged = _merge_config(json.loads((new_dir / rel).read_text(encoding="utf-8")),
-                                       json.loads(dest.read_text(encoding="utf-8")))
+                                       json.loads(dest.read_text(encoding="utf-8")),
+                                       old_defaults)
                 data = (json.dumps(merged, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
             else:
                 data = (new_dir / rel).read_bytes()

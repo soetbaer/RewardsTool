@@ -64,6 +64,9 @@ def main():
             else:
                 info.external_attr = 0o100644 << 16
             zf.writestr(info, data)
+            if name == "config.json":
+                # Unveränderte Vorgaben dieser Version: der Updater erkennt daran, welche Werte der Nutzer geändert hat
+                zf.writestr(zipfile.ZipInfo(f"{NAME}/config.default.json", date_time=info.date_time), data)
 
     with zipfile.ZipFile(target) as zf:
         check(zf.namelist())
