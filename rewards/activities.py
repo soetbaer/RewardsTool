@@ -32,17 +32,24 @@ def _has_query(url: str) -> bool:
     return "bing.com" in u.netloc and u.path.startswith("/search") and bool(parse_qs(u.query).get("q"))
 
 
+def _pick(query) -> str:
+    """Ein Suchbegriff aus config.json: Text oder Liste (dann zufällig einer davon)."""
+    return random.choice(query) if isinstance(query, list) else query
+
+
 def explore_query(act: dashboard.Activity, topics: dict) -> str | None:
     """Suchbegriff für 'Auf Bing erkunden'-Aufgaben (aus offerId-Thema oder Kacheltext)."""
     if _has_query(act.url):
         return None  # Kachel-Link führt bereits eine Suche aus
     m = re.search(r"_([a-z]+)_exploreonbing", act.offer_id.lower())
     if m and m.group(1) in topics:
-        return topics[m.group(1)]
+        return _pick(topics[m.group(1)])
     text = f"{act.title} {act.description}".lower()
     for keyword, query in topics.items():
         if keyword in text:
-            return query
+            return _pick(query)
+    log.info("  Kein Suchbegriff für Thema '%s' in config.json (activities.topic_queries) – nutze Kacheltext",
+             m.group(1) if m else act.offer_id)
     # "Suchen Sie auf Bing nach den besten Streaming-Plattformen" -> "den besten Streaming-Plattformen"
     m = re.search(r"(?:suchen sie|suche|search)\s+(?:auf|on)\s+bing\s+(?:nach|for)\s+(.+)", act.description, re.I)
     if m:

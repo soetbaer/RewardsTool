@@ -37,7 +37,9 @@ python -m venv .venv
   und **klickt sie auf der Rewards-Seite an**. Das ist nötig, weil die Ziel-Links `rnoreward=1` tragen und die
   Punkte erst durch den Klick gutgeschrieben werden. Im geöffneten Tab beantwortet es Quizze (best effort).
   Für „Auf Bing erkunden“ wird passend zum Thema gesucht (`activities.topic_queries` in `config.json`,
-  Schlüssel = Thema aus der offerId, z. B. `cars`, `jobs`).
+  Schlüssel = Thema aus der offerId, z. B. `cars`, `jobs`, oder ein Wort aus dem Kacheltext, z. B. `liedtext`).
+  Der Wert kann auch eine Liste sein, dann wird zufällig ein Begriff gewählt. Fehlt ein Thema, steht im Log
+  „Kein Suchbegriff für Thema …“ – dann dort ergänzen.
 - **Tägliche Suche:** Suchbegriffe aus Google Trends (DE) mit Fallback-Liste. Der Fortschritt
   (`pointsCounters.pc` auf `/earn`) wird alle 10 Suchen geprüft, bis das Limit erreicht ist.
 

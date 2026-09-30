@@ -57,7 +57,40 @@
       "autoparts": "Autoreifen kaufen",
       "rentals": "Mietwagen Hamburg",
       "tickets": "Konzertkarten kaufen",
-      "vacation": "Urlaub buchen"
+      "vacation": "Urlaub buchen",
+      "banking": "Girokonto Vergleich",
+      "bank": "Girokonto Vergleich",
+      "girokonto": "Girokonto Vergleich",
+      "lyrics": [
+        "Lyrics Bohemian Rhapsody",
+        "Lyrics Atemlos durch die Nacht",
+        "Lyrics Imagine John Lennon",
+        "Lyrics Major Tom",
+        "Lyrics Hotel California",
+        "Lyrics Ein Hoch auf uns",
+        "Lyrics Wonderwall",
+        "Lyrics 99 Luftballons"
+      ],
+      "songlyrics": [
+        "Lyrics Bohemian Rhapsody",
+        "Lyrics Atemlos durch die Nacht",
+        "Lyrics Imagine John Lennon",
+        "Lyrics Major Tom",
+        "Lyrics Hotel California",
+        "Lyrics Ein Hoch auf uns",
+        "Lyrics Wonderwall",
+        "Lyrics 99 Luftballons"
+      ],
+      "liedtext": [
+        "Lyrics Bohemian Rhapsody",
+        "Lyrics Atemlos durch die Nacht",
+        "Lyrics Imagine John Lennon",
+        "Lyrics Major Tom",
+        "Lyrics Hotel California",
+        "Lyrics Ein Hoch auf uns",
+        "Lyrics Wonderwall",
+        "Lyrics 99 Luftballons"
+      ]
     }
   },
   "webui": {

@@ -288,7 +288,7 @@ In der Datei `config.json` (mit dem Editor öffnen):
 |---|---|
 | `"search": { "delay": 10 }` | Pause zwischen zwei Suchen in Sekunden (1–120) |
 | `"webui": { "port": 3333 }` | Port des Webinterfaces |
-| `"activities": { "topic_queries": … }` | Suchbegriffe für „Auf Bing erkunden“-Themen |
+| `"activities": { "topic_queries": … }` | Suchbegriffe für „Auf Bing erkunden“-Themen (Text oder Liste, dann zufällig) |
 
 Alles Weitere für Fortgeschrittene (Befehle, Technik) steht in **[TECHNIK.md](TECHNIK.md)**.
 
