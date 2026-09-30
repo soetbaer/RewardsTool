@@ -168,6 +168,16 @@ Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbei
 
 **Darunter:** die drei Bereiche *Tägliche Aktionen*, *Auf Bing erkunden* und *Weiter verdienen* – mit allem,
 was noch offen ist. Ganz unten der **Verlauf** aller Läufe; mit **„Log“** siehst du das Protokoll eines Laufs.
+Im Fuß der Seite steht die installierte Version.
+
+**Einstellungen** (Zahnrad oben rechts):
+
+| Einstellung | Was sie bewirkt |
+|---|---|
+| **Darstellung** | Automatisch (wie dein Gerät), Hell oder Dunkel |
+| **Täglicher Lauf** | Uhrzeit des automatischen Laufs ändern |
+| **Updates** | *Manuell* (Standard): neue Versionen werden angezeigt, du installierst per Knopfdruck. *Automatisch*: wird installiert, sobald kein Lauf aktiv ist. |
+| **Passwort ändern** | Neues Passwort fürs Webinterface; andere Geräte werden abgemeldet |
 
 ### Bei Microsoft anmelden über das Webinterface
 
@@ -210,6 +220,12 @@ was noch offen ist. Ganz unten der **Verlauf** aller Läufe; mit **„Log“** s
 
 ## Update auf eine neue Version
 
+Ab Version 1.1.0 geht das **im Webinterface**: Gibt es eine neue Version, erscheint oben ein blauer Hinweis –
+**„Jetzt aktualisieren“** klicken, nach etwa einer Minute ist die neue Version aktiv. Anmeldung, Verlauf und
+deine Werte in der `config.json` bleiben erhalten. Das Tool sucht alle 6 Stunden auf GitHub nach neuen Versionen.
+
+Von Hand (und einmalig beim Wechsel von 1.0.0):
+
 - **Windows:** Neue ZIP in **denselben Ordner** entpacken und Dateien überschreiben lassen. Danach
   `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten.
 - **Server:** Neue ZIP in das Home-Verzeichnis kopieren, dann:
@@ -219,6 +235,8 @@ was noch offen ist. Ganz unten der **Verlauf** aller Läufe; mit **„Log“** s
   ```
 
 Achtung: Dabei wird die `config.json` überschrieben. Falls du darin etwas geändert hast, vorher sichern.
+Auf dem Server richtet `install.sh` dabei auch die Berechtigung ein, mit der das Webinterface die Uhrzeit des
+täglichen Laufs ändern darf.
 
 ## Deinstallieren
 
@@ -228,6 +246,7 @@ Achtung: Dabei wird die `config.json` überschrieben. Falls du darin etwas geän
   ```
   sudo systemctl disable --now rewardstool.timer rewardstool-web.service
   sudo rm /etc/systemd/system/rewardstool.* /etc/systemd/system/rewardstool-web.service
+  sudo rm /usr/local/sbin/rewardstool-set-time /etc/sudoers.d/rewardstool
   rm -rf ~/RewardsTool
   ```
 

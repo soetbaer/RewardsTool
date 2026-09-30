@@ -60,6 +60,31 @@ Logs: `logs/rewards.log`
 Timer, Webinterface und Aufrufe von Hand sperren sich gegenseitig, damit nie zwei Prozesse gleichzeitig das
 Browserprofil benutzen. Ein Timer-Lauf während einer Anmeldung wird im Verlauf als „übersprungen“ vermerkt.
 
+- **Einstellungen** (`data/settings.json`): Design, Update-Modus. Die Uhrzeit des täglichen Laufs wird direkt in der
+  Aufgabenplanung (Windows, `Set-ScheduledTask`) bzw. im systemd-Timer geändert. Auf Linux darf der Dienst-Benutzer
+  dafür per `/etc/sudoers.d/rewardstool` genau ein Skript als root ausführen: `/usr/local/sbin/rewardstool-set-time HH:MM`
+  (root-eigen, außerhalb des Programmordners, prüft das Format). Beides legt `deploy/install.sh` an.
+
+### Updates
+
+Das Webinterface fragt alle 6 Stunden `api.github.com/repos/soetbaer/RewardsTool/releases/latest` ab und vergleicht
+das Tag mit `VERSION` in `rewards/version.py`. Installiert wird das Release-Asset `RewardsTool-<Version>.zip`:
+
+1. Download (max. 100 MB), SHA-256 gegen die Prüfsumme aus der GitHub-API prüfen.
+2. Entpacken nach `data/update/new/`. Abbruch bei Pfaden außerhalb des Programmordners oder in `profile/`, `data/`,
+   `logs/`, `debug/`, `.venv/`; `rewards/version.py` im Paket muss zur Release-Version passen.
+3. Bisherige Dateien nach `data/update/backup/` sichern, dann überschreiben. `config.json` wird zusammengeführt:
+   neue Einträge kommen dazu, vorhandene Werte bleiben.
+4. Hat sich `requirements.txt` geändert: `pip install` (und Chromium). Schlägt das fehl, wird die Sicherung
+   zurückgespielt.
+5. Webinterface neu starten (Linux: `exec` im selben Prozess, damit systemd/xvfb-run passen; Windows: neuer Prozess).
+
+Während der Installation hält das Webinterface die Profilsperre, ein Timer-Lauf wird dann übersprungen.
+Änderungen an `deploy/install.sh` bzw. `windows/setup.ps1` (Dienste, Aufgaben) wirken erst nach erneutem Ausführen.
+
+**Release erstellen:** `VERSION` in `rewards/version.py` erhöhen, `python pack.py` → `dist/RewardsTool-<Version>.zip`,
+Release mit Tag `v<Version>` anlegen und die ZIP als Asset anhängen.
+
 **Sicherheit:** Das Webinterface spricht unverschlüsseltes HTTP. Nur im eigenen Heimnetz verwenden und
 **keine Portfreigabe im Router** einrichten – bei der Microsoft-Anmeldung laufen die Eingaben über diese Verbindung.
 Passwort vergessen: auf dem Server `data/webui_auth.json` löschen, dann beim nächsten Aufruf neu festlegen.
@@ -136,5 +161,5 @@ Entfernen: `windows\Deinstallieren.bat`.
 
 ## Weitergabe-Paket
 
-`python pack.py` baut `dist/RewardsTool-<Datum>.zip` nur aus freigegebenen Dateien (Positivliste) und bricht ab,
+`python pack.py` baut `dist/RewardsTool-<Version>.zip` nur aus freigegebenen Dateien (Positivliste) und bricht ab,
 falls doch etwas Privates (`profile/`, `data/`, `session.json` …) hineingeraten würde.

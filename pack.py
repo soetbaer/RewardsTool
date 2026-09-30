@@ -1,4 +1,4 @@
-"""Baut ein Weitergabe-Paket: dist/RewardsTool-<Datum>.zip
+"""Baut ein Weitergabe-Paket: dist/RewardsTool-<Version>.zip (als Asset ans GitHub-Release hängen – der Updater lädt es)
 
 Aufnahme nur per Positivliste – persönliche Daten (Browserprofil, Login-Cookies, Verlauf, Logs,
 Screenshots) können so nicht versehentlich in das Paket geraten. Zusätzlich wird am Ende geprüft.
@@ -9,6 +9,8 @@ import sys
 import zipfile
 from datetime import date
 from pathlib import Path
+
+from rewards.version import VERSION
 
 BASE = Path(__file__).resolve().parent
 NAME = "RewardsTool"
@@ -47,7 +49,7 @@ def main():
 
     out_dir = BASE / "dist"
     out_dir.mkdir(exist_ok=True)
-    target = out_dir / f"{NAME}-{date.today():%Y%m%d}.zip"
+    target = out_dir / f"{NAME}-{VERSION}.zip"
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zf:
         for path, name in zip(files, rel):
             data = path.read_bytes()

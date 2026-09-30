@@ -11,25 +11,30 @@ import queue
 import re
 import secrets
 import shutil
+import socket
 import subprocess
 import sys
 import threading
 import time
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, request, send_from_directory
 
-from rewards import dashboard, runstate
+from rewards import dashboard, runstate, schedule, settings, updater
 from rewards.browser import open_context
 from rewards.util import BING, load_config, log, setup_logging
+from rewards.version import VERSION
 
 BASE = Path(__file__).resolve().parent
 WEB_DIR = BASE / "web"
 AUTH_FILE = runstate.DATA / "webui_auth.json"
+RESTART_SESSIONS_FILE = runstate.DATA / "webui_sessions.json"  # nur kurz während eines Neustarts nach Update
 SESSION_COOKIE = "rt_session"
 SESSION_MAX_AGE = 7 * 24 * 3600
 LOGIN_IDLE_TIMEOUT = 15 * 60
+UPDATE_CHECK_INTERVAL = 6 * 3600
 
 app = Flask(__name__, static_folder=None)
 cfg = load_config(BASE / "config.json")
@@ -38,6 +43,7 @@ state_lock = threading.Lock()
 run_proc: subprocess.Popen | None = None
 refresh_proc: subprocess.Popen | None = None
 ms_session = None  # aktive Microsoft-Anmeldung (MsLoginSession)
+update_job = {"state": "idle", "message": "", "error": None}  # idle | running | restarting | error
 
 
 # ---------- Passwort für das Webinterface ----------
@@ -120,6 +126,8 @@ def _alive(proc) -> bool:
 
 
 def busy_reason() -> str | None:
+    if update_job["state"] in ("running", "restarting"):
+        return "Update wird installiert"
     if ms_session and ms_session.is_alive():
         return "Microsoft-Anmeldung läuft"
     if _alive(run_proc) or runstate.CURRENT_RUN_FILE.exists() and runstate.ProfileLock().is_busy():
@@ -279,7 +287,7 @@ def brand_asset(name):
 
 @app.get("/api/auth")
 def auth_status():
-    return jsonify(configured=auth_configured(), logged_in=logged_in())
+    return jsonify(configured=auth_configured(), logged_in=logged_in(), theme=settings.load()["theme"])
 
 
 @app.post("/api/setup")
@@ -325,6 +333,9 @@ def get_state():
         history=runstate.history(30),
         next_timer=next_timer(),
         ms_login=bool(ms_session and ms_session.is_alive()),
+        version=VERSION,
+        update={k: v for k, v in updater.status().items() if k in ("available", "latest", "url")},
+        update_job=update_job,
     )
 
 
@@ -490,11 +501,171 @@ def ms_cancel():
     return jsonify(ok=True)
 
 
+# ---------- Routen: Einstellungen ----------
+
+@app.get("/api/settings")
+@api
+def get_settings():
+    return jsonify(**settings.load(), run_time=schedule.get_time(), run_time_editable=schedule.can_set())
+
+
+@app.post("/api/settings")
+@api
+def save_settings():
+    data = request.json or {}
+    changes = {}
+    if "theme" in data:
+        if data["theme"] not in settings.THEMES:
+            abort(400)
+        changes["theme"] = data["theme"]
+    if "auto_update" in data:
+        changes["auto_update"] = bool(data["auto_update"])
+    return jsonify(settings.save(**changes))
+
+
+@app.post("/api/settings/run-time")
+@api
+def set_run_time():
+    global _timer_cache
+    try:
+        schedule.set_time(str((request.json or {}).get("time", "")))
+    except Exception as e:
+        return jsonify(error=str(e)), 400
+    _timer_cache = (0.0, None)
+    return jsonify(ok=True, run_time=schedule.get_time(), next_timer=next_timer())
+
+
+@app.post("/api/password")
+@api
+def change_password():
+    data = request.json or {}
+    if not check_password(data.get("current", "")):
+        time.sleep(1.5)
+        return jsonify(error="Aktuelles Passwort ist falsch"), 403
+    new = data.get("new", "")
+    if len(new) < 8:
+        return jsonify(error="Mindestens 8 Zeichen"), 400
+    set_password(new)
+    sessions.clear()  # alle anderen Geräte abmelden
+    return with_session_cookie(jsonify(ok=True), new_session())
+
+
+# ---------- Updates ----------
+
+@app.get("/api/update")
+@api
+def get_update():
+    return jsonify(**updater.status(), job=update_job)
+
+
+@app.post("/api/update/check")
+@api
+def check_update():
+    return jsonify(**updater.check(), job=update_job)
+
+
+@app.post("/api/update/install")
+@api
+def install_update():
+    with state_lock:
+        reason = busy_reason()
+        if reason:
+            return jsonify(error=reason), 409
+        if not updater.status()["available"]:
+            return jsonify(error="Kein Update verfügbar"), 409
+        _start_update()
+    return jsonify(ok=True)
+
+
+def _start_update() -> None:
+    """Aufruf nur unter state_lock und wenn nichts anderes läuft."""
+    update_job.update(state="running", message="Update wird vorbereitet …", error=None)
+    threading.Thread(target=_run_update, daemon=True).start()
+
+
+def _run_update() -> None:
+    lock = runstate.ProfileLock()  # hält Timer-Läufe während der Installation fern
+    if not lock.acquire():
+        update_job.update(state="error", error="Das Browserprofil wird gerade benutzt – später erneut versuchen.")
+        return
+    try:
+        new_version = updater.install(progress=lambda msg: update_job.update(message=msg))
+    except Exception as e:
+        log.warning("Update fehlgeschlagen: %s", e)
+        update_job.update(state="error", error=str(e), message="")
+        return
+    finally:
+        lock.release()
+    update_job.update(state="restarting", message=f"Version {new_version} installiert – Webinterface startet neu …")
+    threading.Timer(1.5, _restart).start()  # Zeit für die letzte Antwort an den Browser
+
+
+def _restart() -> None:
+    """Startet das Webinterface mit dem neuen Code neu."""
+    log.info("Webinterface startet nach Update neu")
+    # Angemeldete Browser bleiben über den Neustart angemeldet
+    runstate._write_json(RESTART_SESSIONS_FILE, sessions)
+    try:
+        os.chmod(RESTART_SESSIONS_FILE, 0o600)
+    except OSError:
+        pass
+    script = str(BASE / "webui.py")
+    env = {**os.environ, "REWARDS_RESTART": "1"}
+    if os.name == "nt":
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        subprocess.Popen([sys.executable, script], cwd=BASE, env=env, creationflags=flags, close_fds=True)
+        os._exit(0)
+    # Linux: gleicher Prozess (bleibt so unter systemd bzw. xvfb-run), neuer Code. Vorher alle offenen
+    # Dateien schließen – sonst erbt der neue Prozess z. B. den Server-Socket und findet den Port belegt.
+    env.pop("WERKZEUG_SERVER_FD", None)
+    os.closerange(3, os.sysconf("SC_OPEN_MAX") if hasattr(os, "sysconf") else 1024)
+    os.execve(sys.executable, [sys.executable, script], env)
+
+
+def _update_loop() -> None:
+    """Sucht regelmäßig nach Updates und installiert sie bei 'automatisch', sobald nichts läuft."""
+    time.sleep(30)
+    while True:
+        try:
+            st = updater.status()
+            checked = st["checked"] and datetime.fromisoformat(st["checked"]).timestamp()
+            if not checked or time.time() - checked > UPDATE_CHECK_INTERVAL:
+                st = updater.check()
+            if st["available"] and settings.load()["auto_update"] and update_job["state"] == "idle":
+                with state_lock:
+                    if busy_reason() is None:
+                        log.info("Installiere Update %s automatisch", st["latest"])
+                        _start_update()
+        except Exception:
+            log.exception("Fehler bei der Update-Prüfung")
+        time.sleep(600)
+
+
+def _wait_for_port(host: str, port: int, seconds: int = 30) -> None:
+    """Nach einem Neustart: warten, bis der alte Prozess den Port freigegeben hat."""
+    for _ in range(seconds * 2):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if os.name != "nt":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # wie waitress
+            try:
+                s.bind((host, port))
+                return
+            except OSError:
+                time.sleep(0.5)
+
+
 def main():
     setup_logging(BASE / "logs")
     web = cfg.get("webui", {})
     host, port = web.get("host", "0.0.0.0"), int(web.get("port", 3333))
-    log.info("Webinterface läuft auf http://%s:%s", host, port)
+    if os.environ.pop("REWARDS_RESTART", None):
+        now = time.time()
+        sessions.update({t: exp for t, exp in (runstate.read_json(RESTART_SESSIONS_FILE, {}) or {}).items()
+                         if isinstance(exp, (int, float)) and exp > now})
+        _wait_for_port(host, port)
+    RESTART_SESSIONS_FILE.unlink(missing_ok=True)
+    threading.Thread(target=_update_loop, daemon=True).start()
+    log.info("RewardsTool %s – Webinterface läuft auf http://%s:%s", VERSION, host, port)
     try:
         from waitress import serve
         serve(app, host=host, port=port, threads=8)

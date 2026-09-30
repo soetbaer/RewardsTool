@@ -41,18 +41,40 @@ Environment=REWARDS_TRIGGER=timer
 TimeoutStartSec=2h
 EOF
 
-sudo tee /etc/systemd/system/rewardstool.timer >/dev/null <<EOF
+# Hilfsskript für den Timer: gehört root und liegt außerhalb des Programmordners. Per sudoers darf der
+# Dienst-Benutzer nur genau dieses Skript ausführen – so kann das Webinterface die Uhrzeit ändern, sonst nichts.
+sudo tee /usr/local/sbin/rewardstool-set-time >/dev/null <<'HELPER'
+#!/bin/sh
+# Setzt die Uhrzeit des täglichen RewardsTool-Laufs. Aufruf: rewardstool-set-time HH:MM
+set -eu
+case "${1:-}" in
+  [01][0-9]:[0-5][0-9]|2[0-3]:[0-5][0-9]) ;;
+  *) echo "Ungültige Uhrzeit: ${1:-} (Format HH:MM)" >&2; exit 2 ;;
+esac
+cat > /etc/systemd/system/rewardstool.timer <<UNIT
 [Unit]
 Description=Microsoft Rewards Tool täglich starten
 
 [Timer]
-OnCalendar=*-*-* $TIME:00
+OnCalendar=*-*-* $1:00
 # Lief der Server zur geplanten Zeit nicht, wird der Lauf nach dem Hochfahren nachgeholt
 Persistent=true
 
 [Install]
 WantedBy=timers.target
-EOF
+UNIT
+systemctl daemon-reload
+systemctl enable rewardstool.timer >/dev/null 2>&1
+systemctl restart rewardstool.timer
+HELPER
+sudo chown root:root /usr/local/sbin/rewardstool-set-time
+sudo chmod 755 /usr/local/sbin/rewardstool-set-time
+# Erst prüfen, dann installieren – eine fehlerhafte sudoers-Datei würde sudo komplett blockieren
+SUDOERS_TMP="$(mktemp)"
+echo "$RUN_USER ALL=(root) NOPASSWD: /usr/local/sbin/rewardstool-set-time" > "$SUDOERS_TMP"
+sudo visudo -cf "$SUDOERS_TMP" >/dev/null
+sudo install -m 440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/rewardstool
+rm -f "$SUDOERS_TMP"
 
 echo ">> Webinterface-Dienst (Port aus config.json, Standard 3333)"
 sudo tee /etc/systemd/system/rewardstool-web.service >/dev/null <<EOF
@@ -75,7 +97,7 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now rewardstool.timer
+sudo /usr/local/sbin/rewardstool-set-time "$TIME"
 sudo systemctl enable rewardstool-web.service
 sudo systemctl restart rewardstool-web.service
 
