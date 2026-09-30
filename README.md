@@ -92,7 +92,7 @@ Du brauchst nur **eine Datei**: `Setup.bat`. Sie installiert alles Nötige – a
 
 ### Schritt 1 – RewardsTool entpacken
 
-1. Speichere die ZIP-Datei (z. B. `RewardsTool-20260929.zip`).
+1. Speichere die ZIP-Datei (z. B. `RewardsTool-1.1.0.zip`).
 2. Rechtsklick darauf → **„Alle extrahieren …“** → als Ziel z. B. `C:\RewardsTool` wählen → **„Extrahieren“**.
 
 ### Schritt 2 – Doppelklick auf `Setup.bat`
@@ -135,18 +135,16 @@ Das war's. Auf deinem Desktop liegt jetzt die Verknüpfung **„RewardsTool“**
 Voraussetzungen: **Debian oder Ubuntu** (oder ein Abkömmling wie Raspberry Pi OS **64-Bit**), Internet, ein
 Benutzer mit `sudo`-Rechten. Ein Bildschirm am Server ist **nicht** nötig.
 
-### Schritt 1 – ZIP auf den Server bringen
+### Schritt 1 – Herunterladen und installieren (einmalig, ca. 5–10 Minuten)
 
-Am einfachsten mit dem Programm **WinSCP** (<https://winscp.net>): mit dem Server verbinden und die ZIP-Datei
-per Drag & Drop in dein Home-Verzeichnis ziehen.
-
-### Schritt 2 – Installieren (einmalig, ca. 5–10 Minuten)
-
-Am Server anmelden (z. B. mit PuTTY) und diese Befehle eintippen – die Uhrzeit am Ende ist die tägliche Startzeit:
+Am Server anmelden (z. B. mit PuTTY) und diese Befehle eintippen. Sie laden die aktuelle Version direkt von
+GitHub – du musst vorher nichts herunterladen oder auf den Server kopieren. Die Uhrzeit am Ende ist die tägliche Startzeit:
 
 ```
-sudo apt-get install -y unzip
-unzip RewardsTool-*.zip
+cd ~
+sudo apt-get install -y curl unzip
+curl -fLO https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip
+unzip RewardsTool.zip && rm RewardsTool.zip
 cd RewardsTool
 bash deploy/install.sh 08:00
 ```
@@ -160,7 +158,7 @@ Tipp: Stelle die Zeitzone richtig ein, damit „08:00“ auch 8 Uhr deutscher Ze
 sudo timedatectl set-timezone Europe/Berlin
 ```
 
-### Schritt 3 – Webinterface öffnen und anmelden
+### Schritt 2 – Webinterface öffnen und anmelden
 
 1. Öffne die angezeigte Adresse (z. B. `http://192.168.178.20:3333`) im Browser an deinem PC oder Handy.
 2. Beim ersten Aufruf legst du ein **Passwort für das Webinterface** fest (mind. 8 Zeichen). **Mach das direkt
@@ -254,11 +252,14 @@ Von Hand:
 
 - **Windows:** Neue ZIP in **denselben Ordner** entpacken und Dateien überschreiben lassen. Danach
   `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten.
-- **Server:** Neue ZIP in das Home-Verzeichnis kopieren, dann:
+- **Server:** Diese Befehle laden die aktuelle Version direkt von GitHub und installieren sie:
   ```
-  unzip -o RewardsTool-*.zip
+  cd ~
+  curl -fLO https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip
+  unzip -o RewardsTool.zip && rm RewardsTool.zip
   cd RewardsTool && bash deploy/install.sh 08:00
   ```
+  Die Uhrzeit am Ende ist wieder die tägliche Startzeit.
 
 Achtung: Dabei wird die `config.json` überschrieben. Falls du darin etwas geändert hast, vorher sichern.
 Auf dem Server richtet `install.sh` dabei auch die Berechtigung ein, mit der das Webinterface die Uhrzeit des

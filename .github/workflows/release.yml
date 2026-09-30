@@ -1,6 +1,8 @@
 # Baut das Paket (pack.py) und legt das GitHub-Release vX.Y.Z an – beim Push eines Tags vX.Y.Z
 # oder von Hand (Actions → Release → Run workflow; das Tag wird dann aus VERSION erzeugt).
-# Der Updater im Webinterface lädt genau dieses Asset: RewardsTool-X.Y.Z.zip
+# Assets: RewardsTool-X.Y.Z.zip (lädt der Updater) und RewardsTool.zip (gleicher Inhalt, für den festen Link
+# …/releases/latest/download/RewardsTool.zip in der Anleitung). Gibt es das Release schon, werden nur
+# Notes und Assets aktualisiert.
 name: Release
 
 on:
@@ -34,14 +36,24 @@ jobs:
           echo "TAG=$TAG" >> "$GITHUB_ENV"
 
       - name: Paket bauen
-        run: python pack.py
+        run: |
+          python pack.py
+          cp "dist/RewardsTool-$VERSION.zip" dist/RewardsTool.zip
 
       - name: Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" "dist/RewardsTool-$VERSION.zip" \
-            --target "$GITHUB_SHA" \
-            --title "RewardsTool $VERSION" \
-            --notes-file "docs/releases/$TAG.md" \
-            --latest
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file "docs/releases/$TAG.md"
+            # Versioniertes Paket nur ergänzen, falls es fehlt – sonst ändert sich die Prüfsumme für den Updater
+            gh release view "$TAG" --json assets -q '.assets[].name' | grep -qx "RewardsTool-$VERSION.zip" \
+              || gh release upload "$TAG" "dist/RewardsTool-$VERSION.zip"
+            gh release upload "$TAG" dist/RewardsTool.zip --clobber
+          else
+            gh release create "$TAG" "dist/RewardsTool-$VERSION.zip" dist/RewardsTool.zip \
+              --target "$GITHUB_SHA" \
+              --title "RewardsTool $VERSION" \
+              --notes-file "docs/releases/$TAG.md" \
+              --latest
+          fi
