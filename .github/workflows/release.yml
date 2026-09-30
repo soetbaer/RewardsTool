@@ -1,10 +1,12 @@
-# Baut beim Push eines Tags vX.Y.Z das Paket (pack.py) und legt das GitHub-Release an.
+# Baut das Paket (pack.py) und legt das GitHub-Release vX.Y.Z an – beim Push eines Tags vX.Y.Z
+# oder von Hand (Actions → Release → Run workflow; das Tag wird dann aus VERSION erzeugt).
 # Der Updater im Webinterface lädt genau dieses Asset: RewardsTool-X.Y.Z.zip
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,12 +24,14 @@ jobs:
       - name: Tag und VERSION vergleichen
         run: |
           VERSION=$(python -c "from rewards.version import VERSION; print(VERSION)")
-          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+          TAG="v$VERSION"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$TAG" != "$GITHUB_REF_NAME" ]; then
             echo "Tag $GITHUB_REF_NAME passt nicht zu VERSION $VERSION in rewards/version.py" >&2
             exit 1
           fi
-          test -f "docs/releases/$GITHUB_REF_NAME.md" || { echo "docs/releases/$GITHUB_REF_NAME.md fehlt" >&2; exit 1; }
+          test -f "docs/releases/$TAG.md" || { echo "docs/releases/$TAG.md fehlt" >&2; exit 1; }
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
 
       - name: Paket bauen
         run: python pack.py
@@ -36,7 +40,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "dist/RewardsTool-$VERSION.zip" \
+          gh release create "$TAG" "dist/RewardsTool-$VERSION.zip" \
+            --target "$GITHUB_SHA" \
             --title "RewardsTool $VERSION" \
-            --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
+            --notes-file "docs/releases/$TAG.md" \
             --latest
