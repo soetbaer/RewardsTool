@@ -90,6 +90,14 @@ und lässt dich Läufe starten und dich bei Microsoft anmelden, alles im Browser
 
 Du brauchst nur **eine Datei**: `Setup.bat`. Sie installiert alles Nötige – auch Python, falls es fehlt.
 
+> **Schnellstart:** Statt Schritt 1 und 2 geht es auch mit einem einzigen Befehl. **Windows-Taste** drücken,
+> `PowerShell` tippen, **Enter**, dann diese Zeile einfügen (Rechtsklick) und **Enter** drücken:
+> ```
+> $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; $z="$env:TEMP\RewardsTool.zip"; iwr https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip -OutFile $z -UseBasicParsing; Expand-Archive $z $HOME -Force; del $z; & "$HOME\RewardsTool\Setup.bat"
+> ```
+> Das lädt die aktuelle Version von GitHub, entpackt sie nach `C:\Users\<Name>\RewardsTool` und startet
+> `Setup.bat`. Weiter geht es mit der Tabelle unter Schritt 2.
+
 ### Schritt 1 – RewardsTool entpacken
 
 1. Speichere die ZIP-Datei (z. B. `RewardsTool-1.1.0.zip`).
@@ -251,7 +259,11 @@ deine Werte in der `config.json` bleiben erhalten. Das Tool sucht alle 6 Stunden
 Von Hand:
 
 - **Windows:** Neue ZIP in **denselben Ordner** entpacken und Dateien überschreiben lassen. Danach
-  `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten.
+  `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten. Hast du per Schnellstart installiert, genügt
+  derselbe PowerShell-Befehl noch einmal:
+  ```
+  $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; $z="$env:TEMP\RewardsTool.zip"; iwr https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip -OutFile $z -UseBasicParsing; Expand-Archive $z $HOME -Force; del $z; & "$HOME\RewardsTool\Setup.bat"
+  ```
 - **Server:** Diese Befehle laden die aktuelle Version direkt von GitHub und installieren sie:
   ```
   cd ~
