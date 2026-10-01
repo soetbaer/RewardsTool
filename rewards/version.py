@@ -1,3 +1,3 @@
 """Programmversion – beim Release gleich dem Git-Tag (ohne 'v') setzen."""
-VERSION = "1.2.0"
+VERSION = "1.1.3"
 REPO = "soetbaer/RewardsTool"
