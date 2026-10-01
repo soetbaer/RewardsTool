@@ -23,7 +23,7 @@ python -m venv .venv
 | `python main.py login` | Öffnet den Browser. Du meldest dich dort selbst an (rewards.bing.com und bing.com). Das Passwort wird nicht gespeichert, nur die Sitzung im Ordner `profile/`. |
 | `python main.py status` | Punktestand, Suchfortschritt und offene Aktivitäten |
 | `python main.py run` | Alle Aufgaben: Aktivitäten und Suchen |
-| `python main.py run --only searches` | Nur einzelne Aufgaben (`activities`, `searches`) |
+| `python main.py run --only searches` | Nur einzelne Aufgaben (`activities`, `searches`, `visualsearch`, `claim`) |
 | `python main.py run --headless` | Ohne sichtbares Fenster – dann werden „Auf Bing erkunden“-Aufgaben nicht gutgeschrieben |
 | `python main.py run /delay=20` | Pause zwischen zwei Suchen in Sekunden (1–120, Standard 10 aus `search.delay` in `config.json`) |
 | `python main.py diagnose` | Prüft Login und macht eine Testsuche, ob sie gezählt wird |
@@ -44,6 +44,12 @@ python -m venv .venv
   „Kein Suchbegriff für Thema …“ – dann dort ergänzen.
 - **Tägliche Suche:** Suchbegriffe aus Google Trends (DE) mit Fallback-Liste. Der Fortschritt
   (`pointsCounters.pc` auf `/earn`) wird alle 10 Suchen geprüft, bis das Limit erreicht ist.
+- **Visuelle Suche (Streak):** Lädt das Bing-Bild des Tages über das Kamera-Symbol im Suchfeld hoch.
+  Erledigt-Status aus dem Streak `partner: visualsearch` (`isCurrentDayCompleted`).
+- **Bereit zum Anfordern:** Bonuspunkte (Suchbonus, Monatsbonus, Streaks) müssen auf dem Dashboard beansprucht
+  werden, sonst verfallen sie nach einem Monat. Das Tool klickt die Kachel und im Seitenfenster „Punkte
+  beanspruchen“ – als letzter Schritt eines Laufs. Screenshots dazu in `debug/claim/`.
+- **Ziel:** Ein in Rewards gesetztes Einlöse-Ziel zeigen `status` und das Webinterface mit Fortschritt an.
 
 News-Punkte gibt es nur für das Lesen in der Bing-App auf dem Handy; das Tool deckt sie nicht ab.
 

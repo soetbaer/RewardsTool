@@ -50,6 +50,10 @@
   button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .goal { display: flex; gap: 12px; align-items: center; }
+  .goal img { width: 72px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; }
+  .goal-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+                -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   ul.tasks { list-style: none; padding: 0; margin: 0; }
   ul.tasks li { padding: 6px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 8px; }
   ul.tasks li:first-child { border-top: 0; }
@@ -150,9 +154,15 @@
 
     <div class="grid">
       <div class="card"><h2>Punktestand</h2><div class="big" id="points">–</div>
+        <div class="muted" id="claimable"></div>
         <div class="muted" id="updated"></div></div>
       <div class="card"><h2>PC-Suche heute</h2><div class="big" id="searchText">–</div>
         <div class="bar"><div id="searchBar" style="width:0"></div></div></div>
+      <div class="card hidden" id="goalCard"><h2>Ihr Ziel</h2>
+        <div class="goal"><img id="goalImg" alt=""><div style="min-width:0">
+          <a id="goalTitle" class="goal-title" target="_blank" rel="noopener"></a></div></div>
+        <div class="bar"><div id="goalBar" style="width:0"></div></div>
+        <div class="muted" id="goalText"></div></div>
       <div class="card"><h2>Letzter Lauf</h2><div id="lastRun" class="muted">–</div></div>
       <div class="card"><h2>Nächster geplanter Lauf</h2><div id="nextRun" class="muted">–</div></div>
     </div>
@@ -334,18 +344,31 @@ async function refreshState() {
 
   $('loginWarn').classList.toggle('hidden', st.logged_in !== false);
   $('points').textContent = fmtNum(st.points);
+  $('claimable').textContent = st.claimable ? `+ ${fmtNum(st.claimable)} bereit zum Anfordern` : '';
   $('updated').textContent = st.updated ? 'Stand: ' + fmtTime(st.updated) : 'Noch kein Status – „Status aktualisieren“';
   if (st.search) {
     $('searchText').textContent = `${st.search[0]} / ${st.search[1]}`;
     $('searchBar').style.width = Math.min(100, 100 * st.search[0] / st.search[1]) + '%';
   } else { $('searchText').textContent = '–'; $('searchBar').style.width = '0'; }
+  const g = st.goal;
+  $('goalCard').classList.toggle('hidden', !g);
+  if (g) {
+    $('goalTitle').textContent = g.title;
+    $('goalTitle').href = g.url;
+    $('goalImg').src = g.image || '';
+    $('goalImg').classList.toggle('hidden', !g.image);
+    $('goalBar').style.width = Math.min(100, 100 * g.points / g.price) + '%';
+    $('goalText').textContent = g.remaining
+      ? `${fmtNum(g.points)} / ${fmtNum(g.price)} – noch ${fmtNum(g.remaining)} Punkte`
+      : `${fmtNum(g.price)} Punkte – erreicht, kann eingelöst werden`;
+  }
   $('nextRun').textContent = s.next_timer || 'kein Timer gefunden';
 
   $('sections').innerHTML = (st.sections || []).map(sec => `
     <div class="card"><h2>${esc(sec.name)}</h2>
       <div class="big ${sec.done === sec.total ? 'ok' : ''}">${sec.done} / ${sec.total}</div>
       ${sec.open.length ? `<ul class="tasks">${sec.open.map(o =>
-        `<li><span>${esc(o.title)}</span><span class="muted">${o.points} P.</span></li>`).join('')}</ul>`
+        `<li><span>${esc(o.title)}</span><span class="muted">${o.points != null ? o.points + ' P.' : ''}</span></li>`).join('')}</ul>`
         : '<div class="muted">Alles erledigt</div>'}
     </div>`).join('');
 

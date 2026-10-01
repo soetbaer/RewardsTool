@@ -8,13 +8,14 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from rewards import activities, dashboard, runstate, searches
+from rewards import activities, claim, dashboard, runstate, searches, visualsearch
 from rewards.browser import open_context
 from rewards.util import BING, LOGIN_HINT, load_config, log, setup_logging
 
 BASE = Path(__file__).parent
 DELAY_MIN, DELAY_MAX = 1, 120
-TASKS = {"activities": activities.run, "searches": searches.run}
+# claim zuletzt: Bonuspunkte aus Suchen und Aktivitäten landen erst in "Bereit zum Anfordern"
+TASKS = {"activities": activities.run, "searches": searches.run, "visualsearch": visualsearch.run, "claim": claim.run}
 
 
 REMOTE_PORT = 9222
@@ -88,6 +89,11 @@ def cmd_status(pw, cfg, args):
         print(f"Nicht eingeloggt. {LOGIN_HINT}")
         return
     print(f"Punktestand: {state.points}")
+    if state.claimable is not None:
+        print(f"Bereit zum Anfordern: {state.claimable}")
+    if state.goal:
+        g = state.goal
+        print(f"Ziel:        {g.title} – {g.points}/{g.price} ({'erreicht' if not g.remaining else f'noch {g.remaining}'})")
     if state.search:
         print(f"PC-Suche:    {state.search[0]}/{state.search[1]}")
     for name, acts in (("Tägliche Aktionen", state.daily_set), ("Auf Bing erkunden", state.explore),
@@ -97,6 +103,8 @@ def cmd_status(pw, cfg, args):
         for a in acts:
             if not a.completed:
                 print(f"  offen: {a.title} ({a.points} Pkt.)")
+    if state.visual_search is not None:
+        print(f"Visuelle Suche: {'erledigt' if state.visual_search else 'offen'}")
 
 
 def delay_seconds(value: str) -> int:

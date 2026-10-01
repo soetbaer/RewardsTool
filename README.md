@@ -15,6 +15,8 @@ Das Tool erledigt für dich:
 | Die 3 Kacheln „Tägliche Aktionen“ | ca. 30 |
 | „Auf Bing erkunden“ (Suchen zu vorgegebenen Themen) | ca. 30 |
 | „Weiter verdienen“ (weitere Kacheln, Quizze) | unterschiedlich |
+| „Visuelle Suche“ (eine Bing-Suche mit einem Bild) | 5, am 7. Tag in Folge 100 |
+| Bonuspunkte unter **„Bereit zum Anfordern“** beanspruchen | sonst verfallen sie nach einem Monat |
 
 **Nicht** abgedeckt: Punkte, die es nur in der **Bing-App auf dem Handy** gibt (z. B. Nachrichten lesen).
 
@@ -183,7 +185,8 @@ Beim **allerersten Aufruf** legst du ein Passwort für das Webinterface fest –
 
 <img src="docs/screenshots/passwort.png" alt="Passwort für das Webinterface festlegen" width="360">
 
-**Oben:** Punktestand, Fortschritt der PC-Suche, letzter Lauf, nächster geplanter Lauf.
+**Oben:** Punktestand (mit Punkten, die bereit zum Anfordern sind), Fortschritt der PC-Suche, dein in Rewards
+gesetztes **Ziel** mit Fortschritt, letzter Lauf, nächster geplanter Lauf.
 Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbeitet.
 
 **Knöpfe:**
@@ -194,7 +197,7 @@ Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbei
 | **Status aktualisieren** | Holt den aktuellen Punktestand und die offenen Aufgaben (dauert ca. 20 Sekunden). |
 | **Microsoft-Anmeldung** | Zum (erneuten) Anmelden bei Microsoft. |
 
-**Darunter:** die drei Bereiche *Tägliche Aktionen*, *Auf Bing erkunden* und *Weiter verdienen* – mit allem,
+**Darunter:** die Bereiche *Tägliche Aktionen*, *Auf Bing erkunden*, *Weiter verdienen* und *Visuelle Suche* – mit allem,
 was noch offen ist. Ganz unten der **Verlauf** aller Läufe; mit **„Log“** siehst du das Protokoll eines Laufs.
 Im Fuß der Seite steht die installierte Version.
 
