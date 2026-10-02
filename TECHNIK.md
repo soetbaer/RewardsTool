@@ -44,7 +44,9 @@ python -m venv .venv
   „Kein Suchbegriff für Thema …“ – dann dort ergänzen.
 - **Tägliche Suche:** Suchbegriffe aus Google Trends (DE) mit Fallback-Liste. Der Fortschritt
   (`pointsCounters.pc` auf `/earn`) wird alle 10 Suchen geprüft, bis das Limit erreicht ist.
-- **Visuelle Suche (Streak):** Lädt das Bing-Bild des Tages über das Kamera-Symbol im Suchfeld hoch.
+- **Visuelle Suche (Streak):** Lädt das Bing-Bild des Tages über das Kamera-Symbol im Suchfeld hoch; Bing heftet
+  es ins Suchfeld, Enter startet die Suche. Antwortet `/images/kblob` mit einem Fehler (bei manchen Konten auch von
+  Hand), wird der Streak mit Hinweis übersprungen.
   Erledigt-Status aus dem Streak `partner: visualsearch` (`isCurrentDayCompleted`).
 - **Bereit zum Anfordern:** Bonuspunkte (Suchbonus, Monatsbonus, Streaks) müssen auf dem Dashboard beansprucht
   werden, sonst verfallen sie nach einem Monat. Das Tool klickt die Kachel und im Seitenfenster „Punkte
