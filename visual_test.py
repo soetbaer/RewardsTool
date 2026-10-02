@@ -59,13 +59,26 @@ def log_upload_responses(page):
     page.on("response", on_response)
 
 
-def try_image(ctx, name, img: Path) -> bool:
+def add_token(page):
+    """Hängt Bings Upload-Token (steht im Formular #sbi_form) an die Upload-Anfrage – wie Bings eigener Code."""
+    form = page.locator("#sbi_form")
+    header = form.get_attribute("data-kblobstheader") or "X-SNR-SignedToken-Kblob"
+    token = form.get_attribute("data-kblobsttoken")
+    log.info("  Token im Formular: %s", "ja" if token else "NEIN")
+    if token:
+        page.route("**/images/kblob*", lambda route: route.continue_(
+            headers={**route.request.headers, header: token}))
+
+
+def try_image(ctx, name, img: Path, token: bool = False) -> bool:
     page = ctx.new_page()
     log_upload_responses(page)
     try:
         page.goto(STREAK_URL, wait_until="load")
         reject_consent(page)
         page.wait_for_timeout(3000)
+        if token:
+            add_token(page)
         page.locator("#sb_sbi").click(timeout=10000)
         page.wait_for_timeout(2500)
         log.info("Teste %s (%s KB)", name, img.stat().st_size // 1024)
@@ -107,6 +120,15 @@ def main():
                 return
             req = ctx.request
             daily = "https://www.bing.com" + req.get(ARCHIVE).json()["images"][0]["url"].split("&")[0]
+            # Zuerst: mit Upload-Token (eigenes Bild oder Bild des Tages)
+            first = Path(sys.argv[1]).expanduser().resolve() if len(sys.argv) > 1 else None
+            if not first:
+                first = OUT / "tagesbild.jpg"
+                first.write_bytes(req.get(daily.replace("_1920x1080", "_800x480")).body())
+            if try_image(ctx, "mit_token", first, token=True):
+                log.info("TREFFER – mit Upload-Token hat die Visuelle Suche gezählt")
+                return
+            log.info("  zählt nicht: mit Token")
             # Screenshot der Bing-Startseite als Bild (PNG)
             shot_page = ctx.new_page()
             shot_page.goto("https://www.bing.com/", wait_until="load")
