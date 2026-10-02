@@ -4,6 +4,7 @@ Aufruf (auf dem Server):  xvfb-run -a .venv/bin/python visual_test.py [eigenes-b
 Mit eigenem Bild wird dieses zuerst getestet.
 Screenshots landen in debug/visualtest/.
 """
+import re
 import sys
 import tempfile
 import time
@@ -52,9 +53,8 @@ def log_upload_responses(page):
             log.info("    Kopfzeilen: %s", ", ".join(sorted(h.keys())))
             log.info("    Token-Kopfzeile X-SNR-SignedToken-Kblob: %s",
                      "vorhanden" if any(k.lower() == "x-snr-signedtoken-kblob" for k in h) else "FEHLT")
-            log.info("    Formularfelder: %s", ", ".join(sorted(set(
-                __import__("re").findall(rb'name="([^"]+)"', body)[i].decode() for i in
-                range(len(__import__("re").findall(rb'name="([^"]+)"', body)))))) or "-")
+            fields = sorted({n.decode() for n in re.findall(rb'name="([^"]+)"', body)})
+            log.info("    Formularfelder: %s", ", ".join(fields) or "-")
     page.on("request", on_request)
     page.on("response", on_response)
 
