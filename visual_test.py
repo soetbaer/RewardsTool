@@ -43,6 +43,19 @@ def log_upload_responses(page):
                 body = "?"
             log.info("  Bing-Antwort %s %s | Location: %s | %s", resp.status, resp.url[:160],
                      resp.headers.get("location", "-")[:200], body)
+    def on_request(req):
+        if "/images/kblob" in req.url:
+            h = req.headers
+            body = req.post_data_buffer or b""
+            log.info("  Anfrage an Bing: %s, %s Bytes, Content-Type: %s", req.method, len(body),
+                     h.get("content-type", "-")[:80])
+            log.info("    Kopfzeilen: %s", ", ".join(sorted(h.keys())))
+            log.info("    Token-Kopfzeile X-SNR-SignedToken-Kblob: %s",
+                     "vorhanden" if any(k.lower() == "x-snr-signedtoken-kblob" for k in h) else "FEHLT")
+            log.info("    Formularfelder: %s", ", ".join(sorted(set(
+                __import__("re").findall(rb'name="([^"]+)"', body)[i].decode() for i in
+                range(len(__import__("re").findall(rb'name="([^"]+)"', body)))))) or "-")
+    page.on("request", on_request)
     page.on("response", on_response)
 
 
@@ -94,6 +107,17 @@ def main():
                 return
             req = ctx.request
             daily = "https://www.bing.com" + req.get(ARCHIVE).json()["images"][0]["url"].split("&")[0]
+            # Screenshot der Bing-Startseite als Bild (PNG)
+            shot_page = ctx.new_page()
+            shot_page.goto("https://www.bing.com/", wait_until="load")
+            shot_page.wait_for_timeout(3000)
+            screenshot = OUT / "screenshot_upload.png"
+            shot_page.screenshot(path=str(screenshot))
+            shot_page.close()
+            if try_image(ctx, "screenshot", screenshot):
+                log.info("TREFFER – mit einem Screenshot hat die Visuelle Suche gezählt")
+                return
+            log.info("  zählt nicht: screenshot")
             images = [("klein", daily.replace("_1920x1080", "_800x480") + "&w=800&h=480"),
                       ("wikimedia", WIKI), ("gross", daily)]
             if len(sys.argv) > 1:
