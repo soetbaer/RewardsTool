@@ -70,10 +70,15 @@ Logs: `logs/rewards.log`
 Timer, Webinterface und Aufrufe von Hand sperren sich gegenseitig, damit nie zwei Prozesse gleichzeitig das
 Browserprofil benutzen. Ein Timer-Lauf während einer Anmeldung wird im Verlauf als „übersprungen“ vermerkt.
 
-- **Einstellungen** (`data/settings.json`): Design, Update-Modus. Die Uhrzeit des täglichen Laufs wird direkt in der
+- **Einstellungen** (`data/settings.json`): Design, Update-Modus, täglicher Lauf an/aus. Die Uhrzeit des täglichen Laufs wird direkt in der
   Aufgabenplanung (Windows, `Set-ScheduledTask`) bzw. im systemd-Timer geändert. Auf Linux darf der Dienst-Benutzer
   dafür per `/etc/sudoers.d/rewardstool` genau ein Skript als root ausführen: `/usr/local/sbin/rewardstool-set-time HH:MM`
   (root-eigen, außerhalb des Programmordners, prüft das Format). Beides legt `deploy/install.sh` an.
+- **Täglicher Lauf an/aus:** Windows `Enable-/Disable-ScheduledTask`, Linux `rewardstool-set-time on|off`
+  (`systemctl enable/disable --now rewardstool.timer`). Zusätzlich überspringt `main.py run` jeden Timer-Lauf
+  (`REWARDS_TRIGGER=timer`), solange `daily_run` aus ist – das greift auch bei Linux-Installationen mit altem
+  Hilfsskript. Erneutes `install.sh`/`setup.ps1` lässt einen ausgeschalteten Lauf aus. Beim Wiedereinschalten holt
+  der Linux-Timer (`Persistent=true`) einen verpassten Lauf von heute ggf. sofort nach.
 
 ### Updates
 

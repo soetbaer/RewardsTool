@@ -206,7 +206,7 @@ Im Fuß der Seite steht die installierte Version.
 | Einstellung | Was sie bewirkt |
 |---|---|
 | **Darstellung** | Automatisch (wie dein Gerät), Hell oder Dunkel |
-| **Täglicher Lauf** | Uhrzeit des automatischen Laufs ändern |
+| **Täglicher Lauf** | Mit dem Schieberegler an (grün) oder aus (rot) schalten, z. B. im Urlaub. Der Regler steht auch auf der Startseite. Außerdem die Uhrzeit ändern. |
 | **Updates** | *Manuell* (Standard): neue Versionen werden angezeigt, du installierst per Knopfdruck. *Automatisch*: wird installiert, sobald kein Lauf aktiv ist. |
 | **Passwort ändern** | Neues Passwort fürs Webinterface; andere Geräte werden abgemeldet |
 

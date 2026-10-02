@@ -1,4 +1,4 @@
-"""Uhrzeit des täglichen Laufs lesen und ändern: systemd-Timer (Linux) bzw. Aufgabenplanung (Windows)."""
+"""Täglichen Lauf steuern (Uhrzeit, an/aus): systemd-Timer (Linux) bzw. Aufgabenplanung (Windows)."""
 import os
 import re
 import shutil
@@ -67,3 +67,24 @@ def set_time(hhmm: str) -> None:
     res = _run(["sudo", "-n", LINUX_HELPER, hhmm])
     if res.returncode != 0:
         raise RuntimeError("Uhrzeit konnte nicht geändert werden: " + _decode(res.stderr).strip()[:200])
+
+
+def set_enabled(on: bool) -> str | None:
+    """Schaltet den Timer bzw. die Aufgabe an/aus. Rückgabe: Hinweis, falls nur teilweise möglich.
+
+    Zusätzlich überspringt main.py Timer-Läufe, solange der tägliche Lauf in den Einstellungen aus ist – das greift
+    auch, wenn das System den Timer nicht abschalten konnte (z. B. Linux-Installation mit altem Hilfsskript).
+    """
+    if os.name == "nt":
+        cmd = "Enable-ScheduledTask" if on else "Disable-ScheduledTask"
+        res = _powershell(f"{cmd} -TaskName '{TASK_NAME}' -ErrorAction Stop | Out-Null")
+        if res.returncode != 0:
+            return "Aufgabe 'RewardsTool' nicht gefunden – bitte Setup.bat erneut ausführen."
+        return None
+    if not shutil.which("systemctl"):
+        return None
+    res = _run(["sudo", "-n", LINUX_HELPER, "on" if on else "off"]) if os.path.exists(LINUX_HELPER) else None
+    if res is None or res.returncode != 0:
+        return ("Der Timer selbst läuft weiter, seine Läufe werden aber übersprungen. Zum vollständigen Abschalten "
+                "einmal 'bash deploy/install.sh' erneut ausführen.") if not on else None
+    return None

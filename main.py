@@ -8,7 +8,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from rewards import activities, claim, dashboard, runstate, searches, visualsearch
+from rewards import activities, claim, dashboard, runstate, searches, settings, visualsearch
 from rewards.browser import open_context
 from rewards.util import BING, LOGIN_HINT, load_config, log, setup_logging
 
@@ -299,6 +299,9 @@ def main():
         "login": cmd_login, "status": cmd_status, "run": cmd_run, "dump": cmd_dump, "diagnose": cmd_diagnose,
         "export-session": cmd_export_session, "import-session": cmd_import_session,
     }
+    if args.cmd == "run" and os.environ.get("REWARDS_TRIGGER") == "timer" and not settings.load()["daily_run"]:
+        log.info("Täglicher Lauf ist im Webinterface ausgeschaltet – Timer-Lauf übersprungen.")
+        return
     lock = runstate.ProfileLock()
     if not lock.acquire():
         msg = "Das Browserprofil wird gerade benutzt (anderer Lauf, Timer oder Anmeldung im Webinterface)."
