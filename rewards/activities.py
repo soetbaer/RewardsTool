@@ -32,22 +32,31 @@ def _has_query(url: str) -> bool:
     return "bing.com" in u.netloc and u.path.startswith("/search") and bool(parse_qs(u.query).get("q"))
 
 
-def _pick(query) -> str:
-    """Ein Suchbegriff aus config.json: Text oder Liste (dann zufällig einer davon)."""
-    return random.choice(query) if isinstance(query, list) else query
+def _candidates(query) -> list[str]:
+    """Suchbegriffe aus config.json in Versuchsreihenfolge: Text, oder Liste (erster Eintrag zuerst, Rest zufällig)."""
+    if not isinstance(query, list):
+        return [query]
+    rest = query[1:]
+    random.shuffle(rest)
+    return query[:1] + rest
 
 
-def explore_query(act: dashboard.Activity, topics: dict) -> str | None:
-    """Suchbegriff für 'Auf Bing erkunden'-Aufgaben (aus offerId-Thema oder Kacheltext)."""
+def explore_query(act: dashboard.Activity, topics: dict, tried: list[str] = ()) -> str | None:
+    """Suchbegriff für 'Auf Bing erkunden'-Aufgaben (aus offerId-Thema oder Kacheltext).
+
+    tried: bereits erfolglos gesuchte Begriffe – dann kommt der nächste aus der Liste, None wenn keiner mehr übrig ist.
+    """
     if _has_query(act.url):
         return None  # Kachel-Link führt bereits eine Suche aus
     m = re.search(r"_([a-z]+)_exploreonbing", act.offer_id.lower())
-    if m and m.group(1) in topics:
-        return _pick(topics[m.group(1)])
-    text = f"{act.title} {act.description}".lower()
-    for keyword, query in topics.items():
-        if keyword in text:
-            return _pick(query)
+    query = topics.get(m.group(1)) if m else None
+    if query is None:
+        text = f"{act.title} {act.description}".lower()
+        query = next((q for keyword, q in topics.items() if keyword in text), None)
+    if query is not None:
+        return next((q for q in _candidates(query) if q not in tried), None)
+    if tried:
+        return None
     log.info("  Kein Suchbegriff für Thema '%s' in config.json (activities.topic_queries) – nutze Kacheltext",
              m.group(1) if m else act.offer_id)
     # "Suchen Sie auf Bing nach den besten Streaming-Plattformen" -> "den besten Streaming-Plattformen"
@@ -161,7 +170,7 @@ def _open_rewards_flyout(tab, act: dashboard.Activity) -> None:
     tab.wait_for_timeout(1000)
 
 
-def _work(ctx, rewards_page, act: dashboard.Activity, topics: dict) -> None:
+def _work(ctx, rewards_page, act: dashboard.Activity, topics: dict, tried: list[str]) -> None:
     tab = _open_card(ctx, rewards_page, act)
     if not tab:
         return
@@ -172,8 +181,9 @@ def _work(ctx, rewards_page, act: dashboard.Activity, topics: dict) -> None:
             _open_rewards_flyout(tab, act)
         else:
             solve_quiz(tab)
-        query = explore_query(act, topics)
+        query = explore_query(act, topics, tried)
         if query:
+            tried.append(query)
             log.info("  -> Suche nach: %s", query)
             if not bing_search(tab, query):
                 log.warning("  Suche ohne Ergebnisseite (%s)", tab.url)
@@ -182,6 +192,31 @@ def _work(ctx, rewards_page, act: dashboard.Activity, topics: dict) -> None:
             _shot(tab, act, "2_suche")
     finally:
         tab.close()
+
+
+EXPLORE_RETRIES = 2
+
+
+def _work_all(ctx, acts: list, acfg: dict, tried: dict, announce: bool = True) -> None:
+    pages = {}
+    try:
+        for act in acts:
+            if announce:
+                log.info("[%s] %s (%s Pkt.)", act.section, act.title, act.points)
+            if act.page_url not in pages:
+                pages[act.page_url] = dashboard.open_rewards_page(ctx, act.page_url)
+            rewards_page = pages[act.page_url]
+            if not rewards_page:
+                continue
+            try:
+                _work(ctx, rewards_page, act, acfg["topic_queries"], tried.setdefault(act.offer_id, []))
+            except Exception as e:
+                log.warning("  Aktivität fehlgeschlagen: %s", e)
+            pause(acfg["delay_seconds"])
+    finally:
+        for p in pages.values():
+            if p:
+                p.close()
 
 
 def run(ctx, cfg: dict) -> None:
@@ -196,27 +231,23 @@ def run(ctx, cfg: dict) -> None:
     if cfg.get("_headless") and any(a.section == "Auf Bing erkunden" for a in todo):
         log.warning("'Auf Bing erkunden' wird nur mit sichtbarem Browser gutgeschrieben. Ohne --headless starten "
                     "(auf dem Server mit xvfb-run).")
-    pages = {}
-    try:
-        for act in todo:
-            log.info("[%s] %s (%s Pkt.)", act.section, act.title, act.points)
-            if act.page_url not in pages:
-                pages[act.page_url] = dashboard.open_rewards_page(ctx, act.page_url)
-            rewards_page = pages[act.page_url]
-            if not rewards_page:
-                continue
-            try:
-                _work(ctx, rewards_page, act, acfg["topic_queries"])
-            except Exception as e:
-                log.warning("  Aktivität fehlgeschlagen: %s", e)
-            pause(acfg["delay_seconds"])
-    finally:
-        for p in pages.values():
-            if p:
-                p.close()
-
+    tried: dict[str, list[str]] = {}  # offerId -> bereits gesuchte Begriffe
+    _work_all(ctx, todo, acfg, tried)
     state = dashboard.load_state(ctx)
     still_open = state.open_activities() if state else []
+
+    # 'Auf Bing erkunden' zählt nicht bei jedem Suchbegriff (z. B. Liedtexte nur bei manchen Liedern):
+    # noch offene Aufgaben mit dem nächsten Begriff aus der Liste erneut versuchen
+    for _ in range(EXPLORE_RETRIES):
+        retry = [a for a in still_open if a.section == "Auf Bing erkunden"
+                 and explore_query(a, acfg["topic_queries"], tried.get(a.offer_id, []))]
+        if not retry:
+            break
+        for act in retry:
+            log.info("Zählt noch nicht – neuer Versuch mit anderem Suchbegriff: %s", act.title)
+        _work_all(ctx, retry, acfg, tried, announce=False)
+        state = dashboard.load_state(ctx)
+        still_open = state.open_activities() if state else []
     for act in still_open:
         log.warning("Noch offen: [%s] %s", act.section, act.title)
     if any(a.section == "Auf Bing erkunden" for a in still_open):

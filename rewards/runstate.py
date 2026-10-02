@@ -93,10 +93,21 @@ def save_status(state) -> None:
             "total": len(acts),
             "open": [{"title": a.title, "points": a.points} for a in acts if not a.completed],
         })
+    if state.visual_search is not None:
+        sections.append({
+            "name": "Visuelle Suche",
+            "done": int(state.visual_search),
+            "total": 1,
+            "open": [] if state.visual_search else [{"title": "Suche mit einem Bild", "points": None}],
+        })
+    goal = state.goal
     _write_json(STATUS_FILE, {
         "updated": now_iso(),
         "logged_in": True,
         "points": state.points,
+        "claimable": state.claimable,
+        "goal": {"title": goal.title, "price": goal.price, "points": goal.points, "remaining": goal.remaining,
+                 "url": goal.url, "image": goal.image} if goal else None,
         "search": list(state.search) if state.search else None,
         "sections": sections,
     })

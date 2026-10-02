@@ -5,6 +5,7 @@ SETTINGS_FILE = runstate.DATA / "settings.json"
 DEFAULTS = {
     "theme": "auto",          # auto | light | dark
     "auto_update": False,     # Updates automatisch installieren
+    "daily_run": True,        # täglicher Lauf (Timer) an/aus
 }
 THEMES = ("auto", "light", "dark")
 

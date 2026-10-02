@@ -16,3 +16,4 @@ __pycache__/
 *.pyc
 dist/
 .claude/
+config.default.json

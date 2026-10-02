@@ -32,8 +32,24 @@ class Activity:
 
 
 @dataclass
+class Goal:
+    title: str
+    price: int  # Punkte, die das Ziel kostet
+    points: int  # davon schon vorhanden
+    url: str
+    image: str
+
+    @property
+    def remaining(self) -> int:
+        return max(0, self.price - self.points)
+
+
+@dataclass
 class State:
     points: int | None = None
+    claimable: int | None = None  # Kachel "Bereit zum Anfordern": muss aktiv beansprucht werden
+    visual_search: bool | None = None  # Streak "Visuelle Suche": heute erledigt? (None = nicht angeboten)
+    goal: Goal | None = None  # in Rewards gesetztes Einlöse-Ziel
     search: tuple[int, int] | None = None
     daily_set: list[Activity] = field(default_factory=list)
     more: list[Activity] = field(default_factory=list)
@@ -103,12 +119,67 @@ def _section_cards(page_html: str, section_id: str) -> list[tuple[str, str, str]
 
 # ---------- Parser ----------
 
+CLAIM_TILE = "DashboardHeader_ClaimablePoints"
+
+
+def claimable_points(payload: str) -> int | None:
+    """Punkte der Kachel 'Bereit zum Anfordern' (None, wenn die Kachel fehlt)."""
+    m = re.search(rf'"{CLAIM_TILE}".{{0,300}}?"points":(\d+|"\$undefined")', payload)
+    if not m:
+        return None
+    return int(m.group(1)) if m.group(1).isdigit() else 0  # nichts bereit: "$undefined"
+
+
+def claim_texts(payload: str) -> tuple[str | None, str | None]:
+    """Beschriftung der Kachel und des Knopfs im Seitenfenster – in der Sprache der Seite."""
+    tile = button = None
+    i = payload.find(f'"{CLAIM_TILE}"')
+    if i >= 0:
+        m = re.search(r'"text-labelControl","children":"([^"]+)"', payload[i:i + 3000])
+        tile = m.group(1) if m else None
+    m = re.search(r'"claimCta":"([^"]+)"', payload)
+    button = m.group(1) if m else None
+    return tile, button
+
+
+def streak_done(payload: str, partner: str) -> bool | None:
+    """Ist die heutige Aktivität eines Streaks (z. B. 'visualsearch') erledigt? None = Streak nicht angeboten."""
+    for m in re.finditer(rf'"partner":"{re.escape(partner)}"', payload):
+        raw = _enclosing_object(payload, m.start())
+        if raw and "isCurrentDayCompleted" in raw:
+            return _flag(raw["isCurrentDayCompleted"]) if _flag(raw.get("isEnabled", True)) else None
+    return None
+
+
+def parse_goal(payload: str) -> Goal | None:
+    """Kachel 'Ihr Ziel': Titel und Fortschrittsbalken (value = vorhandene Punkte, maxValue = Preis)."""
+    i = payload.find('"name":"RedeemGoalCard"')
+    if i < 0:
+        return None
+    card = payload[i:i + 10000]
+    m = re.search(r'"children":"([^"]+)"\}\],\["\$","\$L\w+",null,\{"value":(\d+),"maxValue":(\d+)', card)
+    if not m:
+        return None  # kein Ziel gesetzt
+    href = re.search(r'"href":"([^"]+)"[^{}]{0,200}"instrument":\{$', payload[max(0, i - 400):i])
+    img = re.search(r'"src":"([^"]+)"', card[m.end():])
+    return Goal(
+        title=_clean(m.group(1)),
+        price=int(m.group(3)),
+        points=int(m.group(2)),
+        url=REWARDS + href.group(1).rstrip("?") if href and href.group(1).startswith("/") else REWARDS,
+        image=img.group(1) if img else "",
+    )
+
+
 def parse_dashboard(page_html: str, state: State) -> None:
     payload = decode_payload(page_html)
     text = _clean(re.sub(r"<[^>]+>", " ", re.sub(r"<script.*?</script>", "", page_html, flags=re.S)))
     m = re.search(r"Verfügbare Punkte ([\d.,]+)", text) or re.search(r"Available points ([\d.,]+)", text)
     if m:
         state.points = int(re.sub(r"\D", "", m.group(1)))
+    state.claimable = claimable_points(payload)
+    state.visual_search = streak_done(payload, "visualsearch")
+    state.goal = parse_goal(payload)
 
     for items in _values(payload, "dailySetItems")[:1]:
         for raw in items:

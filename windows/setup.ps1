@@ -190,6 +190,13 @@ if ($SkipSystem) {
         Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
             -Description 'RewardsTool: täglich Microsoft-Rewards-Punkte sammeln' -Force | Out-Null
         Info "Eingerichtet: täglich um $time Uhr (wenn der PC an ist und du angemeldet bist)."
+        # Im Webinterface ausgeschalteter täglicher Lauf bleibt aus
+        $settings = $null
+        try { $settings = Get-Content (Join-Path $Root 'data\settings.json') -Raw -Encoding UTF8 | ConvertFrom-Json } catch { }
+        if ($settings -and $settings.daily_run -eq $false) {
+            Disable-ScheduledTask -TaskName $TaskName | Out-Null
+            Info 'Der tägliche Lauf ist im Webinterface ausgeschaltet und bleibt aus.'
+        }
         Info 'Während des Laufs erscheint ein Browserfenster – einfach in Ruhe lassen.'
     } catch {
         Write-Host "      Der tägliche Lauf konnte nicht eingerichtet werden: $($_.Exception.Message)" -ForegroundColor Yellow

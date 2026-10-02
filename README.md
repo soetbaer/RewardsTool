@@ -15,6 +15,8 @@ Das Tool erledigt für dich:
 | Die 3 Kacheln „Tägliche Aktionen“ | ca. 30 |
 | „Auf Bing erkunden“ (Suchen zu vorgegebenen Themen) | ca. 30 |
 | „Weiter verdienen“ (weitere Kacheln, Quizze) | unterschiedlich |
+| „Visuelle Suche“ (eine Bing-Suche mit einem Bild) | 5, am 7. Tag in Folge 100 |
+| Bonuspunkte unter **„Bereit zum Anfordern“** beanspruchen | sonst verfallen sie nach einem Monat |
 
 **Nicht** abgedeckt: Punkte, die es nur in der **Bing-App auf dem Handy** gibt (z. B. Nachrichten lesen).
 
@@ -89,6 +91,14 @@ und lässt dich Läufe starten und dich bei Microsoft anmelden, alles im Browser
 ## Variante A: Windows-PC
 
 Du brauchst nur **eine Datei**: `Setup.bat`. Sie installiert alles Nötige – auch Python, falls es fehlt.
+
+> **Schnellstart:** Statt Schritt 1 und 2 geht es auch mit einem einzigen Befehl. **Windows-Taste** drücken,
+> `PowerShell` tippen, **Enter**, dann diese Zeile einfügen (Rechtsklick) und **Enter** drücken:
+> ```
+> $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; $z="$env:TEMP\RewardsTool.zip"; iwr https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip -OutFile $z -UseBasicParsing; Expand-Archive $z $HOME -Force; del $z; & "$HOME\RewardsTool\Setup.bat"
+> ```
+> Das lädt die aktuelle Version von GitHub, entpackt sie nach `C:\Users\<Name>\RewardsTool` und startet
+> `Setup.bat`. Weiter geht es mit der Tabelle unter Schritt 2.
 
 ### Schritt 1 – RewardsTool entpacken
 
@@ -175,7 +185,8 @@ Beim **allerersten Aufruf** legst du ein Passwort für das Webinterface fest –
 
 <img src="docs/screenshots/passwort.png" alt="Passwort für das Webinterface festlegen" width="360">
 
-**Oben:** Punktestand, Fortschritt der PC-Suche, letzter Lauf, nächster geplanter Lauf.
+**Oben:** Punktestand (mit Punkten, die bereit zum Anfordern sind), Fortschritt der PC-Suche, dein in Rewards
+gesetztes **Ziel** mit Fortschritt, letzter Lauf, nächster geplanter Lauf.
 Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbeitet.
 
 **Knöpfe:**
@@ -186,7 +197,7 @@ Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbei
 | **Status aktualisieren** | Holt den aktuellen Punktestand und die offenen Aufgaben (dauert ca. 20 Sekunden). |
 | **Microsoft-Anmeldung** | Zum (erneuten) Anmelden bei Microsoft. |
 
-**Darunter:** die drei Bereiche *Tägliche Aktionen*, *Auf Bing erkunden* und *Weiter verdienen* – mit allem,
+**Darunter:** die Bereiche *Tägliche Aktionen*, *Auf Bing erkunden*, *Weiter verdienen* und *Visuelle Suche* – mit allem,
 was noch offen ist. Ganz unten der **Verlauf** aller Läufe; mit **„Log“** siehst du das Protokoll eines Laufs.
 Im Fuß der Seite steht die installierte Version.
 
@@ -195,7 +206,7 @@ Im Fuß der Seite steht die installierte Version.
 | Einstellung | Was sie bewirkt |
 |---|---|
 | **Darstellung** | Automatisch (wie dein Gerät), Hell oder Dunkel |
-| **Täglicher Lauf** | Uhrzeit des automatischen Laufs ändern |
+| **Täglicher Lauf** | Mit dem Schieberegler an (grün) oder aus (rot) schalten, z. B. im Urlaub. Der Regler steht auch auf der Startseite. Außerdem die Uhrzeit ändern. |
 | **Updates** | *Manuell* (Standard): neue Versionen werden angezeigt, du installierst per Knopfdruck. *Automatisch*: wird installiert, sobald kein Lauf aktiv ist. |
 | **Passwort ändern** | Neues Passwort fürs Webinterface; andere Geräte werden abgemeldet |
 
@@ -251,7 +262,11 @@ deine Werte in der `config.json` bleiben erhalten. Das Tool sucht alle 6 Stunden
 Von Hand:
 
 - **Windows:** Neue ZIP in **denselben Ordner** entpacken und Dateien überschreiben lassen. Danach
-  `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten.
+  `Setup.bat` erneut starten. Deine Anmeldung bleibt erhalten. Hast du per Schnellstart installiert, genügt
+  derselbe PowerShell-Befehl noch einmal:
+  ```
+  $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; $z="$env:TEMP\RewardsTool.zip"; iwr https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip -OutFile $z -UseBasicParsing; Expand-Archive $z $HOME -Force; del $z; & "$HOME\RewardsTool\Setup.bat"
+  ```
 - **Server:** Diese Befehle laden die aktuelle Version direkt von GitHub und installieren sie:
   ```
   cd ~
@@ -288,7 +303,7 @@ In der Datei `config.json` (mit dem Editor öffnen):
 |---|---|
 | `"search": { "delay": 10 }` | Pause zwischen zwei Suchen in Sekunden (1–120) |
 | `"webui": { "port": 3333 }` | Port des Webinterfaces |
-| `"activities": { "topic_queries": … }` | Suchbegriffe für „Auf Bing erkunden“-Themen (Text oder Liste, dann zufällig) |
+| `"activities": { "topic_queries": … }` | Suchbegriffe für „Auf Bing erkunden“-Themen (Text oder Liste mehrerer Begriffe) |
 
 Alles Weitere für Fortgeschrittene (Befehle, Technik) steht in **[TECHNIK.md](TECHNIK.md)**.
 

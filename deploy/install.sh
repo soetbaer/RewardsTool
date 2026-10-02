@@ -42,14 +42,17 @@ TimeoutStartSec=2h
 EOF
 
 # Hilfsskript für den Timer: gehört root und liegt außerhalb des Programmordners. Per sudoers darf der
-# Dienst-Benutzer nur genau dieses Skript ausführen – so kann das Webinterface die Uhrzeit ändern, sonst nichts.
+# Dienst-Benutzer nur genau dieses Skript ausführen – so kann das Webinterface Uhrzeit ändern und den täglichen
+# Lauf an-/ausschalten, sonst nichts.
 sudo tee /usr/local/sbin/rewardstool-set-time >/dev/null <<'HELPER'
 #!/bin/sh
-# Setzt die Uhrzeit des täglichen RewardsTool-Laufs. Aufruf: rewardstool-set-time HH:MM
+# Täglicher RewardsTool-Lauf. Aufruf: rewardstool-set-time HH:MM | on | off
 set -eu
 case "${1:-}" in
+  on)  systemctl enable --now rewardstool.timer >/dev/null 2>&1; exit 0 ;;
+  off) systemctl disable --now rewardstool.timer >/dev/null 2>&1; exit 0 ;;
   [01][0-9]:[0-5][0-9]|2[0-3]:[0-5][0-9]) ;;
-  *) echo "Ungültige Uhrzeit: ${1:-} (Format HH:MM)" >&2; exit 2 ;;
+  *) echo "Ungültig: ${1:-} (HH:MM, on oder off)" >&2; exit 2 ;;
 esac
 cat > /etc/systemd/system/rewardstool.timer <<UNIT
 [Unit]
@@ -64,8 +67,8 @@ Persistent=true
 WantedBy=timers.target
 UNIT
 systemctl daemon-reload
-systemctl enable rewardstool.timer >/dev/null 2>&1
-systemctl restart rewardstool.timer
+# Ausgeschalteter Timer bleibt aus – nur die Uhrzeit ändert sich
+if systemctl is-enabled --quiet rewardstool.timer; then systemctl restart rewardstool.timer; fi
 HELPER
 sudo chown root:root /usr/local/sbin/rewardstool-set-time
 sudo chmod 755 /usr/local/sbin/rewardstool-set-time
@@ -98,6 +101,13 @@ EOF
 
 sudo systemctl daemon-reload
 sudo /usr/local/sbin/rewardstool-set-time "$TIME"
+# Täglichen Lauf einschalten – außer er wurde im Webinterface ausgeschaltet
+if python3 -c "import json,sys; sys.exit(0 if json.load(open('$DIR/data/settings.json')).get('daily_run', True) is False else 1)" 2>/dev/null; then
+  sudo /usr/local/sbin/rewardstool-set-time off
+  echo "Hinweis: Der tägliche Lauf ist im Webinterface ausgeschaltet und bleibt aus."
+else
+  sudo /usr/local/sbin/rewardstool-set-time on
+fi
 sudo systemctl enable rewardstool-web.service
 sudo systemctl restart rewardstool-web.service
 

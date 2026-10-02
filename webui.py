@@ -332,6 +332,7 @@ def get_state():
         run={**current, "log_text": tail(runstate.RUN_LOGS / current["log"])} if running else None,
         history=runstate.history(30),
         next_timer=next_timer(),
+        daily_run=settings.load()["daily_run"],
         ms_login=bool(ms_session and ms_session.is_alive()),
         version=VERSION,
         update={k: v for k, v in updater.status().items() if k in ("available", "latest", "url")},
@@ -535,6 +536,18 @@ def set_run_time():
     return jsonify(ok=True, run_time=schedule.get_time(), next_timer=next_timer())
 
 
+@app.post("/api/settings/daily-run")
+@api
+def set_daily_run():
+    global _timer_cache
+    on = bool((request.json or {}).get("enabled"))
+    settings.save(daily_run=on)
+    note = schedule.set_enabled(on)
+    _timer_cache = (0.0, None)
+    log.info("Täglicher Lauf %s (Webinterface)", "eingeschaltet" if on else "ausgeschaltet")
+    return jsonify(daily_run=on, note=note, next_timer=next_timer())
+
+
 @app.post("/api/password")
 @api
 def change_password():
@@ -665,6 +678,9 @@ def main():
         _wait_for_port(host, port)
     RESTART_SESSIONS_FILE.unlink(missing_ok=True)
     threading.Thread(target=_update_loop, daemon=True).start()
+    if not settings.load()["daily_run"]:
+        # z. B. nach erneutem Setup: Aufgabe/Timer wieder an die Einstellung anpassen
+        threading.Thread(target=schedule.set_enabled, args=(False,), daemon=True).start()
     log.info("RewardsTool %s – Webinterface läuft auf http://%s:%s", VERSION, host, port)
     try:
         from waitress import serve
