@@ -42,7 +42,7 @@ def prepare(page):
 
 
 def wait_result(page, name) -> bool:
-    start = page.url
+    start = STREAK_URL
     for _ in range(30):
         page.wait_for_timeout(1000)
         if page.url != start:
@@ -64,6 +64,31 @@ def way_upload(page, img: Path):
     log.info("  Eingabefelder nach Klick aufs Kamera-Symbol:\n    %s", "\n    ".join(inputs))
     page.locator("input[type=file]").first.set_input_files(str(img))
     return wait_result(page, "upload")
+
+
+def way_pin(page, img: Path, question: str = ""):
+    """Bing pinnt das hochgeladene Bild ins Suchfeld (uploadAndPin) – danach muss die Suche abgeschickt werden."""
+    page.locator("#sb_sbi").click(timeout=10000)
+    page.wait_for_timeout(2500)
+    page.locator("#sb_fileinput").set_input_files(str(img))
+    page.wait_for_timeout(10000)  # Hochladen und Anpinnen
+    shot(page, "pin_angeheftet")
+    fields = page.evaluate("() => [...document.querySelectorAll('#sb_form input')].map(i => "
+                           "`${i.type} name=${i.name} value=${(i.value || '').slice(0, 60)}`)")
+    log.info("  Felder im Suchformular nach dem Anpinnen:\n    %s", "\n    ".join(fields))
+    box = page.locator("#sb_form_q")
+    box.click()
+    if question:
+        box.press_sequentially(question, delay=60)
+    pages_before = len(page.context.pages)
+    box.press("Enter")
+    page.wait_for_timeout(3000)
+    if len(page.context.pages) > pages_before:
+        page = page.context.pages[-1]
+        log.info("  Ergebnis in neuem Tab")
+    elif page.url.startswith("https://www.bing.com/?"):
+        page.locator("#sb_form_go, #search_icon").first.click(timeout=5000)
+    return wait_result(page, "pin")
 
 
 def way_paste_url(page, url: str):
@@ -108,15 +133,21 @@ def main():
                 return
             with tempfile.TemporaryDirectory() as tmp:
                 img = Path(tmp) / "bild.jpg"
-                for name, way in (("Upload", "upload"), ("Bild-URL einfügen", "paste"), ("Direktaufruf", "direct")):
+                for name, way in (("Anpinnen + Enter", "pin"), ("Anpinnen + Frage", "pinq"), ("Upload", "upload"),
+                                  ("Bild-URL einfügen", "paste"), ("Direktaufruf", "direct")):
                     page = ctx.new_page()
                     try:
                         url = prepare(page)
                         if not url:
                             log.error("Kein Bild des Tages gefunden")
                             return
-                        if way == "upload":
+                        if not img.exists():
                             img.write_bytes(page.request.get(url).body())
+                        if way == "pin":
+                            way_pin(page, img)
+                        elif way == "pinq":
+                            way_pin(page, img, "Was ist auf diesem Bild?")
+                        elif way == "upload":
                             way_upload(page, img)
                         elif way == "paste":
                             way_paste_url(page, url)
