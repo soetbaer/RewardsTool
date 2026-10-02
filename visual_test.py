@@ -35,8 +35,19 @@ def done(ctx):
 def prepare(page):
     page.goto(STREAK_URL, wait_until="load")
     reject_consent(page)
-    page.wait_for_timeout(3000)
-    url = _image_url(page)
+    url = None
+    for _ in range(5):  # Startseite lädt das Bild teils verzögert
+        page.wait_for_timeout(2000)
+        url = _image_url(page)
+        if url:
+            break
+    if not url:
+        # Ausweg: Bild des Tages über Bings Archiv-Schnittstelle
+        try:
+            data = page.request.get("https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=de-DE").json()
+            url = "https://www.bing.com" + data["images"][0]["url"]
+        except Exception as e:
+            log.warning("  Bild-Archiv nicht lesbar: %s", e)
     log.info("Bild des Tages: %s", url)
     return url
 
