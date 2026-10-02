@@ -1,6 +1,7 @@
 """Testet die 'Visuelle Suche' mit verschiedenen Bildern und protokolliert Bings Upload-Antwort.
 
-Aufruf (auf dem Server):  xvfb-run -a .venv/bin/python visual_test.py
+Aufruf (auf dem Server):  xvfb-run -a .venv/bin/python visual_test.py [eigenes-bild.jpg]
+Mit eigenem Bild wird dieses zuerst getestet.
 Screenshots landen in debug/visualtest/.
 """
 import sys
@@ -61,9 +62,10 @@ def try_image(ctx, name, img: Path) -> bool:
         err = page.locator("#bcid-err").is_visible()
         pinned = page.evaluate("() => !!document.querySelector('.sbi-paste-pin, [class*=pastepin], #sb_form img')")
         log.info("  Fehlermeldung sichtbar: %s | Bild im Suchfeld: %s | URL: %s", err, pinned, page.url)
-        if pinned and page.url.startswith("https://www.bing.com/?"):
-            page.keyboard.press("Escape")
-            page.locator("#sb_form_q").press("Enter")
+        if not err:
+            # Bing setzt den Cursor nach dem Anpinnen selbst ins Suchfeld ("Eingabetaste drücken, um mit diesem
+            # Bild zu suchen") – also nur Enter, wie von Hand
+            page.keyboard.press("Enter")
             page.wait_for_timeout(10000)
             log.info("  Nach Enter: %s", page.url)
             shot(page, f"{name}_ergebnis")
@@ -94,6 +96,13 @@ def main():
             daily = "https://www.bing.com" + req.get(ARCHIVE).json()["images"][0]["url"].split("&")[0]
             images = [("klein", daily.replace("_1920x1080", "_800x480") + "&w=800&h=480"),
                       ("wikimedia", WIKI), ("gross", daily)]
+            if len(sys.argv) > 1:
+                own = Path(sys.argv[1]).expanduser().resolve()
+                log.info("Eigenes Bild: %s", own)
+                if try_image(ctx, "eigenes", own):
+                    log.info("TREFFER – mit dem eigenen Bild hat die Visuelle Suche gezählt")
+                    return
+                log.info("  zählt nicht: eigenes Bild")
             with tempfile.TemporaryDirectory() as tmp:
                 for name, url in images:
                     resp = req.get(url)
