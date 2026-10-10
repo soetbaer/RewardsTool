@@ -1,8 +1,9 @@
 import json
 import logging
 import random
-import time
 from pathlib import Path
+
+from . import runstate
 
 log = logging.getLogger("rewards")
 
@@ -56,8 +57,8 @@ def load_config(path: Path) -> dict:
 
 
 def pause(bounds) -> None:
-    """Wartet eine zufällige Zeit zwischen bounds[0] und bounds[1] Sekunden."""
-    time.sleep(random.uniform(*bounds))
+    """Wartet eine zufällige Zeit zwischen bounds[0] und bounds[1] Sekunden (abbrechbar)."""
+    runstate.sleep(random.uniform(*bounds))
 
 
 def reject_consent(page) -> None:

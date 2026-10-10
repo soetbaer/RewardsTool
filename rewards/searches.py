@@ -1,11 +1,10 @@
 import math
 import random
-import time
 import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 
-from . import dashboard
+from . import dashboard, runstate
 from .util import BING, log, reject_consent
 
 FALLBACK_TERMS = [
@@ -85,7 +84,14 @@ def bing_search(page, query: str) -> bool:
 
 def search_progress(ctx) -> tuple[int, int] | None:
     state = dashboard.load_state(ctx, dashboard=False)
-    return state.search if state else None
+    progress = state.search if state else None
+    if progress:
+        runstate.update_status(search=list(progress))  # Live-Anzeige im Webinterface
+    return progress
+
+
+CHECK_EVERY = 5  # Suchen zwischen zwei Abfragen des Fortschritts
+NOT_COUNTED_AFTER = 10  # so viele Suchen ohne Zuwachs: Bing zählt nicht (Anmeldung abgelaufen?)
 
 
 def run(ctx, cfg: dict) -> None:
@@ -107,31 +113,37 @@ def run(ctx, cfg: dict) -> None:
     log.info("Pause zwischen Suchen: %s s", delay)
     page = ctx.new_page()
     terms = build_terms(needed, scfg["trends_geo"])
-    for i, term in enumerate(terms, 1):
-        try:
-            if bing_search(page, term):
-                log.info("Suche %s/%s: %s", i, len(terms), term)
-            else:
-                log.warning("Suche %s/%s: keine Ergebnisseite (%s)", i, len(terms), page.url)
-        except Exception as e:
-            log.warning("Suche '%s' fehlgeschlagen: %s", term, e)
-        time.sleep(delay)
+    checked = {0: progress}  # Suche Nr. -> Fortschritt danach
+    try:
+        for i, term in enumerate(terms, 1):
+            runstate.check_cancel()
+            runstate.update_run(detail=f"Suche {i}/{len(terms)}")
+            try:
+                if bing_search(page, term):
+                    log.info("Suche %s/%s: %s", i, len(terms), term)
+                else:
+                    log.warning("Suche %s/%s: keine Ergebnisseite (%s)", i, len(terms), page.url)
+            except Exception as e:
+                log.warning("Suche '%s' fehlgeschlagen: %s", term, e)
+            runstate.sleep(delay)
 
-        # Alle 10 Suchen prüfen, ob das Tageslimit erreicht ist und ob überhaupt gezählt wird
-        if i % 10 == 0:
-            before = progress
-            progress = search_progress(ctx)
-            if progress and progress[0] >= progress[1]:
-                log.info("Suchpunkte vollständig (%s/%s).", *progress)
-                break
-            if progress and before and progress[0] <= before[0]:
-                log.error(
-                    "Die letzten 10 Suchen wurden NICHT gezählt (%s/%s). Vermutlich ist die Bing-Anmeldung "
-                    "abgelaufen – Sitzung neu exportieren/importieren. Breche ab.", *progress
-                )
-                break
-            if progress:
-                log.info("Fortschritt: %s/%s", *progress)
-    page.close()
+            # Regelmäßig prüfen, ob das Tageslimit erreicht ist und ob überhaupt gezählt wird
+            if i % CHECK_EVERY == 0:
+                progress = search_progress(ctx)
+                checked[i] = progress
+                if progress and progress[0] >= progress[1]:
+                    log.info("Suchpunkte vollständig (%s/%s).", *progress)
+                    break
+                before = checked.get(i - NOT_COUNTED_AFTER)
+                if progress and before and progress[0] <= before[0]:
+                    log.error(
+                        "Die letzten %s Suchen wurden NICHT gezählt (%s/%s). Vermutlich ist die Bing-Anmeldung "
+                        "abgelaufen – Sitzung neu exportieren/importieren. Breche ab.", NOT_COUNTED_AFTER, *progress
+                    )
+                    break
+                if progress:
+                    log.info("Fortschritt: %s/%s", *progress)
+    finally:
+        page.close()
     if progress:
         log.info("Suche beendet bei %s/%s Punkten", *progress)

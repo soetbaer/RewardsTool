@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import dashboard
+from . import dashboard, runstate
 from .searches import bing_search
 from .util import LOGIN_HINT, log, pause, reject_consent
 
@@ -200,7 +200,9 @@ EXPLORE_RETRIES = 2
 def _work_all(ctx, acts: list, acfg: dict, tried: dict, announce: bool = True) -> None:
     pages = {}
     try:
-        for act in acts:
+        for n, act in enumerate(acts, 1):
+            runstate.check_cancel()
+            runstate.update_run(detail=f"{n}/{len(acts)}: {act.title}")
             if announce:
                 log.info("[%s] %s (%s Pkt.)", act.section, act.title, act.points)
             if act.page_url not in pages:
@@ -234,6 +236,8 @@ def run(ctx, cfg: dict) -> None:
     tried: dict[str, list[str]] = {}  # offerId -> bereits gesuchte Begriffe
     _work_all(ctx, todo, acfg, tried)
     state = dashboard.load_state(ctx)
+    if state:
+        runstate.save_status(state)  # Live-Anzeige im Webinterface
     still_open = state.open_activities() if state else []
 
     # 'Auf Bing erkunden' zählt nicht bei jedem Suchbegriff (z. B. Liedtexte nur bei manchen Liedern):
@@ -247,6 +251,8 @@ def run(ctx, cfg: dict) -> None:
             log.info("Zählt noch nicht – neuer Versuch mit anderem Suchbegriff: %s", act.title)
         _work_all(ctx, retry, acfg, tried, announce=False)
         state = dashboard.load_state(ctx)
+        if state:
+            runstate.save_status(state)
         still_open = state.open_activities() if state else []
     for act in still_open:
         log.warning("Noch offen: [%s] %s", act.section, act.title)

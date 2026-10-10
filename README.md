@@ -193,7 +193,7 @@ Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbei
 
 | Knopf | Was passiert |
 |---|---|
-| **Lauf starten** | Sammelt sofort Punkte. Darunter erscheint das Protokoll live. |
+| **Lauf starten** | Sammelt sofort Punkte. Darunter erscheinen der aktuelle Schritt und das Protokoll live; Punktestand, PC-Suche und offene Aufgaben werden während des Laufs aktualisiert. Mit **„Abbrechen“** lässt sich ein Lauf (auch ein Timer-Lauf) beenden. |
 | **Status aktualisieren** | Holt den aktuellen Punktestand und die offenen Aufgaben (dauert ca. 20 Sekunden). |
 | **Microsoft-Anmeldung** | Zum (erneuten) Anmelden bei Microsoft. |
 

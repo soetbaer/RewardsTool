@@ -16,6 +16,8 @@ BASE = Path(__file__).parent
 DELAY_MIN, DELAY_MAX = 1, 120
 # claim zuletzt: Bonuspunkte aus Suchen und Aktivitäten landen erst in "Bereit zum Anfordern"
 TASKS = {"activities": activities.run, "searches": searches.run, "visualsearch": visualsearch.run, "claim": claim.run}
+TASK_NAMES = {"activities": "Aktivitäten", "searches": "PC-Suche", "visualsearch": "Visuelle Suche",
+              "claim": "Punkte beanspruchen"}
 
 
 REMOTE_PORT = 9222
@@ -131,23 +133,37 @@ def cmd_run(pw, cfg, args):
     log.addHandler(handler)
     run = runstate.start_run(run_log, os.environ.get("REWARDS_TRIGGER", "manuell"))
     result = {"result": "fehler"}
-    ctx = open_context(pw, cfg, BASE, headless=args.headless or None)
+    ctx = None
     try:
-        before = dashboard.load_state(ctx, earn=False)
+        runstate.update_run(step="Browser starten")
+        ctx = open_context(pw, cfg, BASE, headless=args.headless or None)
+        runstate.update_run(step="Stand lesen")
+        before = dashboard.load_state(ctx)
+        # Neuer Stand sofort ins Webinterface (Suche x/y, offene Aufgaben), nicht erst am Ende
+        runstate.save_status(before)
         if not before:
             log.error("Nicht eingeloggt. %s", LOGIN_HINT)
-            runstate.save_status(None)
             result = {"result": "nicht eingeloggt"}
             return
         result["points_before"] = before.points
+        state = before
         for name in selected:
+            runstate.check_cancel()
             log.info("=== %s ===", name)
+            runstate.update_run(step=TASK_NAMES.get(name, name), detail=None)
             try:
                 TASKS[name](ctx, cfg)
             except Exception:
                 log.exception("Fehler in %s", name)
-        state = dashboard.load_state(ctx)
-        runstate.save_status(state)
+            runstate.check_cancel()
+            runstate.update_run(step=f"{TASK_NAMES.get(name, name)}: Stand lesen", detail=None)
+            try:
+                state = dashboard.load_state(ctx)
+            except Exception as e:
+                log.warning("Stand nach %s nicht lesbar: %s", name, e)
+                state = None
+            if state:
+                runstate.save_status(state)  # Live-Anzeige im Webinterface
         if state:
             log.info("Fertig. Punktestand: %s", state.points)
             result.update(
@@ -156,8 +172,15 @@ def cmd_run(pw, cfg, args):
                 search=list(state.search) if state.search else None,
                 open=len(state.open_activities()),
             )
+    except runstate.RunCancelled:
+        log.warning("Lauf im Webinterface abgebrochen.")
+        result["result"] = "abgebrochen"
     finally:
-        ctx.close()
+        if ctx:
+            try:
+                ctx.close()
+            except Exception:
+                pass
         runstate.finish_run(run, **result)
         log.removeHandler(handler)
         handler.close()

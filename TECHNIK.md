@@ -67,7 +67,10 @@ Logs: `logs/rewards.log`
   zuerst auf der Rewards-Seite, dann auf bing.com oben rechts; danach „Fertig – Anmeldung prüfen“.
   Das Microsoft-Passwort wird nicht gespeichert.
 - **Status:** Punkte, Suchfortschritt, offene Aufgaben, nächster Timer-Lauf.
-- **Lauf starten**, laufender Lauf mit Live-Log, Verlauf aller Läufe (Timer, Webinterface, von Hand) mit Log.
+- **Lauf starten**, laufender Lauf mit aktuellem Schritt, Live-Log und Abbrechen-Knopf, Verlauf aller Läufe (Timer, Webinterface, von Hand) mit Log.
+  Ein Lauf liest beim Start sofort den aktuellen Stand (bis dahin ist der alte ausgegraut) und aktualisiert ihn
+  nach jeder Aufgabe, die PC-Suche alle 5 Suchen. Abbrechen legt `data/cancel_run` an; der Lauf hört beim
+  nächsten Schritt auf. Reagiert er nach 60 s nicht, beendet das Webinterface den Prozess.
 
 Timer, Webinterface und Aufrufe von Hand sperren sich gegenseitig, damit nie zwei Prozesse gleichzeitig das
 Browserprofil benutzen. Ein Timer-Lauf während einer Anmeldung wird im Verlauf als „übersprungen“ vermerkt.

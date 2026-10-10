@@ -1,6 +1,7 @@
 """Gemeinsamer Zustand für CLI, Timer und Webinterface: Profilsperre, Status-Snapshot, Laufverlauf."""
 import json
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +11,7 @@ RUN_LOGS = BASE / "logs" / "runs"
 STATUS_FILE = DATA / "status.json"
 HISTORY_FILE = DATA / "history.jsonl"
 CURRENT_RUN_FILE = DATA / "current_run.json"
+CANCEL_FILE = DATA / "cancel_run"  # vom Webinterface angelegt: laufender Lauf soll abbrechen
 
 
 def now_iso() -> str:
@@ -82,6 +84,7 @@ def save_status(state) -> None:
     """Schreibt den zuletzt gelesenen Rewards-Zustand für das Webinterface (state=None: nicht eingeloggt)."""
     if state is None:
         old = read_json(STATUS_FILE, {}) or {}
+        old.pop("pending", None)
         _write_json(STATUS_FILE, {**old, "updated": now_iso(), "logged_in": False})
         return
     sections = []
@@ -113,22 +116,85 @@ def save_status(state) -> None:
     })
 
 
+def update_status(**fields) -> None:
+    """Ändert einzelne Werte des gespeicherten Zustands (Live-Anzeige während eines Laufs)."""
+    status = read_json(STATUS_FILE)
+    if not status:
+        return
+    for key, value in fields.items():
+        if value is None:
+            status.pop(key, None)
+        else:
+            status[key] = value
+    _write_json(STATUS_FILE, status)
+
+
 def start_run(log_file: Path, trigger: str) -> dict:
+    CANCEL_FILE.unlink(missing_ok=True)
     run = {"start": now_iso(), "trigger": trigger, "log": log_file.name, "pid": os.getpid()}
     _write_json(CURRENT_RUN_FILE, run)
+    # Alter Stand gilt nicht mehr: das Webinterface zeigt ihn ausgegraut, bis der Lauf den neuen gelesen hat
+    update_status(pending=True)
     return run
 
 
+def update_run(**fields) -> None:
+    """Aktueller Schritt des Laufs für die Live-Anzeige (z. B. step="Suchen", detail="Suche 3/30")."""
+    run = read_json(CURRENT_RUN_FILE)
+    if run and run.get("pid") == os.getpid():
+        _write_json(CURRENT_RUN_FILE, {**run, **fields})
+
+
 def finish_run(run: dict, **result) -> None:
+    """Schreibt den Lauf in den Verlauf. Nur ein gestarteter Lauf (mit pid) räumt den Laufzustand auf –
+    ein wegen belegtem Profil übersprungener darf den des aktiven Laufs nicht löschen."""
+    started = run.get("pid") is not None
     run = {**run, **result, "end": now_iso()}
-    run.pop("pid", None)
+    for key in ("pid", "step", "detail"):
+        run.pop(key, None)
     DATA.mkdir(exist_ok=True)
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(run, ensure_ascii=False) + "\n")
+    if not started:
+        return
     try:
         CURRENT_RUN_FILE.unlink()
     except OSError:
         pass
+    CANCEL_FILE.unlink(missing_ok=True)
+    update_status(pending=None)
+
+
+# ---------- Lauf abbrechen ----------
+
+class RunCancelled(BaseException):
+    """Lauf wurde im Webinterface abgebrochen. BaseException, damit die 'except Exception' in den
+    einzelnen Aufgaben den Abbruch nicht abfangen."""
+
+
+def request_cancel() -> None:
+    DATA.mkdir(exist_ok=True)
+    CANCEL_FILE.touch()
+
+
+def cancel_requested() -> bool:
+    return CANCEL_FILE.exists()
+
+
+def check_cancel() -> None:
+    if CANCEL_FILE.exists() and CURRENT_RUN_FILE.exists():
+        raise RunCancelled()
+
+
+def sleep(seconds: float) -> None:
+    """Wie time.sleep, bricht aber sofort ab, wenn der Lauf abgebrochen werden soll."""
+    end = time.monotonic() + seconds
+    while True:
+        check_cancel()
+        left = end - time.monotonic()
+        if left <= 0:
+            return
+        time.sleep(min(0.5, left))
 
 
 def history(limit: int = 30) -> list[dict]:

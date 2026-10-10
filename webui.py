@@ -35,6 +35,7 @@ SESSION_COOKIE = "rt_session"
 SESSION_MAX_AGE = 7 * 24 * 3600
 LOGIN_IDLE_TIMEOUT = 15 * 60
 UPDATE_CHECK_INTERVAL = 6 * 3600
+CANCEL_GRACE = 60  # so lange darf ein Lauf zum sauberen Abbrechen brauchen, danach wird er beendet
 
 app = Flask(__name__, static_folder=None)
 cfg = load_config(BASE / "config.json")
@@ -131,7 +132,7 @@ def busy_reason() -> str | None:
     if ms_session and ms_session.is_alive():
         return "Microsoft-Anmeldung läuft"
     if _alive(run_proc) or runstate.CURRENT_RUN_FILE.exists() and runstate.ProfileLock().is_busy():
-        return "Lauf aktiv"
+        return "Lauf wird abgebrochen" if runstate.cancel_requested() else "Lauf aktiv"
     if _alive(refresh_proc):
         return "Status wird aktualisiert"
     if runstate.ProfileLock().is_busy():
@@ -329,7 +330,8 @@ def get_state():
     return jsonify(
         busy=busy_reason(),
         status=runstate.read_json(runstate.STATUS_FILE),
-        run={**current, "log_text": tail(runstate.RUN_LOGS / current["log"])} if running else None,
+        run={**current, "log_text": tail(runstate.RUN_LOGS / current["log"]),
+             "cancelling": runstate.cancel_requested()} if running else None,
         history=runstate.history(30),
         next_timer=next_timer(),
         daily_run=settings.load()["daily_run"],
@@ -350,6 +352,53 @@ def start_run():
             return jsonify(error=reason), 409
         run_proc = _spawn("run")
     return jsonify(ok=True)
+
+
+@app.post("/api/run/cancel")
+@api
+def cancel_run():
+    with state_lock:
+        current = runstate.read_json(runstate.CURRENT_RUN_FILE)
+        if not current or not runstate.ProfileLock().is_busy():
+            return jsonify(error="Es läuft gerade kein Lauf"), 409
+        if not runstate.cancel_requested():
+            runstate.request_cancel()
+            log.info("Lauf vom %s wird abgebrochen (Webinterface)", current.get("start"))
+            threading.Thread(target=_cancel_watchdog, args=(current, run_proc), daemon=True).start()
+    return jsonify(ok=True)
+
+
+def _cancel_watchdog(current: dict, proc) -> None:
+    """Der Lauf bricht beim nächsten Schritt selbst ab. Hängt er (z. B. in einem Seitenaufruf),
+    wird der Prozess nach CANCEL_GRACE Sekunden beendet und der Lauf hier in den Verlauf geschrieben."""
+    deadline = time.time() + CANCEL_GRACE
+    while time.time() < deadline:
+        if (runstate.read_json(runstate.CURRENT_RUN_FILE) or {}).get("pid") != current.get("pid"):
+            return  # sauber beendet
+        time.sleep(1)
+    log.warning("Lauf reagiert nicht auf den Abbruch – Prozess %s wird beendet", current.get("pid"))
+    _kill(current.get("pid"), proc)
+    time.sleep(3)
+    still = runstate.read_json(runstate.CURRENT_RUN_FILE)
+    if still and still.get("pid") == current.get("pid") and not runstate.ProfileLock().is_busy():
+        runstate.finish_run(still, result="abgebrochen")
+
+
+def _kill(pid, proc) -> None:
+    try:
+        if os.name == "nt":
+            # /T: auch den Browser des Laufs beenden
+            for target in {pid, proc.pid if _alive(proc) else None} - {None}:
+                subprocess.run(["taskkill", "/PID", str(target), "/T", "/F"], capture_output=True, timeout=15,
+                               creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            import signal
+            if pid:
+                os.kill(int(pid), signal.SIGTERM)
+            if _alive(proc):
+                proc.terminate()
+    except Exception as e:
+        log.warning("Lauf konnte nicht beendet werden: %s", e)
 
 
 @app.post("/api/refresh")

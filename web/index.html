@@ -121,6 +121,10 @@
   .switch input:checked ~ .state { color: var(--ok); }
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
   .card-head h2 { margin-bottom: 8px; }
+  button.danger { color: var(--err); border-color: var(--err); font-weight: 600; }
+  /* Alter Stand während ein neuer Lauf ihn gerade liest */
+  .stale { opacity: .45; transition: opacity .2s; }
+  #runStep { margin: 0 0 8px; font-weight: 600; }
 </style>
 <script>
   // Design sofort setzen (vor dem ersten Zeichnen), damit die Seite nicht kurz hell aufblitzt
@@ -167,7 +171,7 @@
       <span class="muted"> Läufe sammeln erst wieder Punkte, wenn du dich über „Microsoft-Anmeldung“ neu anmeldest.</span>
     </div>
 
-    <div class="grid">
+    <div class="grid" id="statusGrid">
       <div class="card"><h2>Punktestand</h2><div class="big" id="points">–</div>
         <div class="muted" id="claimable"></div>
         <div class="muted" id="updated"></div></div>
@@ -192,7 +196,9 @@
     </div>
 
     <div id="runCard" class="card hidden">
-      <h2>Laufender Lauf <span class="muted" id="runInfo"></span></h2>
+      <div class="card-head"><h2>Laufender Lauf <span class="muted" id="runInfo"></span></h2>
+        <button class="danger" id="cancelBtn">Abbrechen</button></div>
+      <p id="runStep"></p>
       <pre id="runLog"></pre>
     </div>
 
@@ -362,7 +368,11 @@ async function refreshState() {
   $('loginWarn').classList.toggle('hidden', st.logged_in !== false);
   $('points').textContent = fmtNum(st.points);
   $('claimable').textContent = st.claimable ? `+ ${fmtNum(st.claimable)} bereit zum Anfordern` : '';
-  $('updated').textContent = st.updated ? 'Stand: ' + fmtTime(st.updated) : 'Noch kein Status – „Status aktualisieren“';
+  const pending = !!(st.pending && s.run);  // ohne aktiven Lauf (Absturz) gilt der alte Stand weiter
+  $('updated').textContent = pending ? 'Neuer Lauf liest den aktuellen Stand …'
+    : st.updated ? 'Stand: ' + fmtTime(st.updated) : 'Noch kein Status – „Status aktualisieren“';
+  for (const el of [$('points'), $('searchText'), $('searchBar').parentElement, $('goalCard'), $('sections')])
+    el.classList.toggle('stale', pending);
   if (st.search) {
     $('searchText').textContent = `${st.search[0]} / ${st.search[1]}`;
     $('searchBar').style.width = Math.min(100, 100 * st.search[0] / st.search[1]) + '%';
@@ -392,6 +402,9 @@ async function refreshState() {
   if (s.run) {
     show('runCard');
     $('runInfo').textContent = `– seit ${fmtTime(s.run.start)} (${s.run.trigger})`;
+    $('runStep').textContent = s.run.cancelling ? 'Wird abgebrochen …'
+      : [s.run.step, s.run.detail].filter(Boolean).join(' · ');
+    $('cancelBtn').disabled = !!s.run.cancelling;
     const pre = $('runLog'), atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
     pre.textContent = s.run.log_text;
     if (atBottom) pre.scrollTop = pre.scrollHeight;
@@ -411,7 +424,7 @@ async function refreshState() {
       <td>${r.log ? `<a onclick="openLog('${esc(r.log)}')">Log</a>` : ''}</td></tr>`).join('')
     || '<tr><td colspan="8" class="muted">Noch keine Läufe</td></tr>';
 }
-const resultClass = r => r === 'ok' ? 'ok' : (r || '').startsWith('übersprungen') ? 'warn' : 'err';
+const resultClass = r => r === 'ok' ? 'ok' : (r || '').startsWith('übersprungen') || r === 'abgebrochen' ? 'warn' : 'err';
 const gain = r => (r.points_after != null && r.points_before != null)
   ? ` <span class="muted">(+${fmtNum(r.points_after - r.points_before)})</span>` : '';
 function duration(r) {
@@ -426,6 +439,12 @@ async function openLog(name) {
 }
 $('runBtn').onclick = async () => {
   try { await call('/api/run', {}); toast('Lauf gestartet'); setTimeout(refreshState, 1500); } catch (e) { toast(e.message); }
+};
+$('cancelBtn').onclick = async () => {
+  if (!confirm('Laufenden Lauf abbrechen? Bereits gesammelte Punkte bleiben erhalten.')) return;
+  $('cancelBtn').disabled = true;
+  try { await call('/api/run/cancel', {}); toast('Lauf wird abgebrochen …'); refreshState(); }
+  catch (e) { toast(e.message); $('cancelBtn').disabled = false; }
 };
 $('refreshBtn').onclick = async () => {
   try { await call('/api/refresh', {}); toast('Status wird aktualisiert …'); setTimeout(refreshState, 1500); } catch (e) { toast(e.message); }
