@@ -279,9 +279,10 @@ Von Hand:
   sudo apt-get install -y curl unzip
   curl -fLO https://github.com/soetbaer/RewardsTool/releases/latest/download/RewardsTool.zip
   unzip -o RewardsTool.zip && rm RewardsTool.zip
-  cd RewardsTool && bash deploy/install.sh 08:00
+  cd RewardsTool && bash deploy/install.sh
   ```
-  Die Uhrzeit am Ende ist wieder die tägliche Startzeit.
+  Die bisherige Uhrzeit des täglichen Laufs bleibt erhalten. Für eine andere Uhrzeit sie am Ende anhängen,
+  z. B. `bash deploy/install.sh 07:30`.
 
 Achtung: Dabei wird die `config.json` überschrieben. Falls du darin etwas geändert hast, vorher sichern.
 Auf dem Server richtet `install.sh` dabei auch die Berechtigung ein, mit der das Webinterface die Uhrzeit des

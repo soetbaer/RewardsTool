@@ -114,6 +114,9 @@ das Tag mit `VERSION` in `rewards/version.py`. Installiert wird das Release-Asse
 
 Während der Installation hält das Webinterface die Profilsperre, ein Timer-Lauf wird dann übersprungen.
 Änderungen an `deploy/install.sh` bzw. `windows/setup.ps1` (Dienste, Aufgaben) wirken erst nach erneutem Ausführen.
+Das Update im Webinterface tauscht nur Programmdateien und Python-Pakete aus; systemd-Dienste, Hilfsskript und
+sudoers schreibt es bewusst nicht (dafür bräuchte der Dienst-Benutzer Root-Rechte). Erneutes
+`bash deploy/install.sh` ohne Uhrzeit behält die eingestellte Uhrzeit.
 
 **Release erstellen:** `VERSION` in `rewards/version.py` erhöhen, Release-Notes nach `docs/releases/v<Version>.md`
 schreiben, committen und das Tag `v<Version>` pushen. Der Workflow `.github/workflows/release.yml` baut dann mit

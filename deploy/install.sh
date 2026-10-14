@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
 # Richtet RewardsTool auf einem Linux-Server ein: venv, Chromium, systemd-Timer.
-# Aufruf als normaler Benutzer (nicht root):  bash deploy/install.sh [Uhrzeit, Standard 08:00]
+# Aufruf als normaler Benutzer (nicht root):  bash deploy/install.sh [Uhrzeit]
+# Ohne Uhrzeit bleibt die bisher eingestellte (auch die im Webinterface geänderte), bei Neuinstallation 08:00.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_USER="$(id -un)"
-TIME="${1:-08:00}"
+TIMER_FILE=/etc/systemd/system/rewardstool.timer
+TIME="${1:-}"
+if [ -z "$TIME" ]; then
+  TIME="$(sed -nE 's/^OnCalendar=[^ ]+ ([0-9]{2}:[0-9]{2}).*/\1/p' "$TIMER_FILE" 2>/dev/null | head -n 1 || true)"
+  [ -n "$TIME" ] && echo ">> Behalte die bisherige Uhrzeit $TIME (andere Uhrzeit: bash deploy/install.sh HH:MM)"
+  TIME="${TIME:-08:00}"
+fi
+if ! [[ "$TIME" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+  echo "Ungültige Uhrzeit: $TIME (Format HH:MM, z. B. 08:00)" >&2
+  exit 2
+fi
 
 if [ "$RUN_USER" = "root" ]; then
   echo "Bitte als normaler Benutzer ausführen (sudo wird bei Bedarf selbst aufgerufen)." >&2
