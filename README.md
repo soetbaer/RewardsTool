@@ -232,6 +232,7 @@ Im Fuß der Seite steht die installierte Version.
 | Kacheln unter **„Auf Bing erkunden“ bleiben offen** | Diese zählen nur mit sichtbarem Browserfenster. Nicht mit `--headless` starten (die Windows-Dateien und der Server machen das automatisch richtig). |
 | **Suchen werden nicht gezählt** | Im Verlauf „Log“ öffnen und nach „NICHT gezählt“ suchen. Meist hilft neu anmelden. |
 | Setup meldet **„Python konnte nicht automatisch installiert werden“** | Python von <https://www.python.org/downloads/> installieren, dabei den Haken **„Add python.exe to PATH“** setzen, dann `Setup.bat` erneut starten. |
+| Update-Prüfung meldet **„CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate“** | Python konnte das HTTPS-Zertifikat von GitHub nicht prüfen (fehlendes Stammzertifikat oder Virenscanner/Firmen-Proxy mit eigenem Zertifikat). Ab der nächsten Version nach 1.1.5 behoben – dieses Update einmal **von Hand** installieren (siehe „Update auf eine neue Version“). |
 | Webinterface öffnet sich nicht (Windows) | Doppelklick auf `windows\Webinterface-starten.bat`. |
 | **Webinterface-Passwort vergessen** | Im RewardsTool-Ordner die Datei `data\webui_auth.json` löschen (Server: `rm ~/RewardsTool/data/webui_auth.json`). Beim nächsten Aufruf neues Passwort festlegen. |
 | Webinterface **nicht erreichbar** (Server) | Richtige IP-Adresse? Läuft der Dienst? Auf dem Server: `sudo systemctl restart rewardstool-web` |

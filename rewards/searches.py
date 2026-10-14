@@ -1,11 +1,10 @@
 import math
 import random
-import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 
 from . import dashboard, runstate
-from .util import BING, log, reject_consent
+from .util import BING, log, reject_consent, urlopen
 
 FALLBACK_TERMS = [
     "Wetter Wochenende", "Rezept Apfelkuchen", "Bundesliga Tabelle", "Aktienkurs DAX",
@@ -26,7 +25,7 @@ def trending_terms(geo: str) -> list[str]:
     """Aktuelle Suchtrends aus dem Google-Trends-RSS-Feed."""
     try:
         url = f"https://trends.google.com/trending/rss?geo={geo}"
-        with urllib.request.urlopen(url, timeout=15) as r:
+        with urlopen(url, timeout=15) as r:
             root = ET.fromstring(r.read())
         return [t.text.strip() for t in root.iter("title") if t.text][1:]  # 1. Titel = Feedname
     except Exception as e:

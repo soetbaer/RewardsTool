@@ -1,6 +1,9 @@
+import functools
 import json
 import logging
 import random
+import ssl
+import urllib.request
 from pathlib import Path
 
 from . import runstate
@@ -9,6 +12,27 @@ log = logging.getLogger("rewards")
 
 BING = "https://www.bing.com/"
 LOGIN_HINT = "Bitte neu anmelden: im Webinterface auf 'Microsoft-Anmeldung' klicken (oder python main.py login)."
+
+
+@functools.cache
+def ssl_context() -> ssl.SSLContext:
+    """HTTPS-Zertifikate über den Zertifikatspeicher des Betriebssystems prüfen (truststore).
+
+    Pythons eigene Prüfung scheitert unter Windows, wenn eine Stammzertifizierungsstelle noch nicht lokal
+    vorliegt (Windows lädt sie erst bei Bedarf nach) oder Virenscanner/Firmen-Proxy HTTPS mit eigenem
+    Zertifikat prüfen – Fehler „CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate“.
+    Ohne truststore (noch nicht installiert) gilt die normale Prüfung von Python.
+    """
+    try:
+        import truststore
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception as e:
+        log.warning("truststore nicht verfügbar (%s) – nutze Pythons eigene Zertifikatsprüfung", e)
+        return ssl.create_default_context()
+
+
+def urlopen(url, timeout: float):
+    return urllib.request.urlopen(url, timeout=timeout, context=ssl_context())
 
 
 def setup_logging(log_dir: Path) -> None:

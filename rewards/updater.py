@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 from rewards import runstate
-from rewards.util import log
+from rewards.util import log, urlopen
 from rewards.version import REPO, VERSION
 
 BASE = runstate.BASE
@@ -44,7 +44,7 @@ def is_newer(candidate: str, current: str = VERSION) -> bool:
 
 def _get(url: str, accept: str = "application/vnd.github+json", timeout: int = 30):
     req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": f"RewardsTool/{VERSION}"})
-    return urllib.request.urlopen(req, timeout=timeout)
+    return urlopen(req, timeout=timeout)
 
 
 # ---------- Prüfen ----------
