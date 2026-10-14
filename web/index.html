@@ -105,6 +105,8 @@
     .iconbtn { padding: 8px 10px; }
   }
   .settings .pw { display: grid; gap: 8px; max-width: 360px; }
+  .settings textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 11px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text); resize: vertical; }
   .msg { font-size: 13px; min-height: 1.2em; margin: 0; }
   /* Schieberegler an/aus: grün = an, rot = aus */
   .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
@@ -249,6 +251,15 @@
     </section>
 
     <section>
+      <h3>Zugriff über eigene Adressen</h3>
+      <div class="muted">Über IP-Adresse, <code>localhost</code> und den Rechnernamen (z. B. <code>raspberrypi.fritz.box</code>)
+        ist das Webinterface immer erreichbar. Weitere Namen, etwa eine eigene Domain, hier eintragen – einer pro Zeile.
+        Andere Namen werden zum Schutz vor fremden Webseiten abgewiesen.</div>
+      <textarea id="hostsInput" rows="3" placeholder="z. B. rewards.meinedomain.de" spellcheck="false" autocapitalize="off"></textarea>
+      <div class="row"><button id="hostsBtn">Speichern</button><span class="msg muted" id="hostsMsg" style="flex:1"></span></div>
+    </section>
+
+    <section>
       <h3>Passwort ändern</h3>
       <form id="pwForm" class="pw">
         <input type="text" autocomplete="username" value="RewardsTool" hidden>
@@ -332,6 +343,13 @@ async function initAuth() {
   applyTheme(a.theme);
   if (a.logged_in) return startApp();
   setupMode = !a.configured;
+  if (setupMode && !a.setup_allowed) {
+    $('authHint').textContent = 'Für dieses Webinterface ist noch kein Passwort festgelegt. Das geht aus Sicherheitsgründen '
+      + 'nur auf dem Rechner selbst: im RewardsTool-Ordner „.venv/bin/python webui.py set-password“ ausführen '
+      + '(Windows: Setup.bat erneut starten), dann diese Seite neu laden.';
+    ['authPw', 'authPw2', 'authBtn'].forEach(hide);
+    show('authView'); return;
+  }
   $('authHint').textContent = setupMode
     ? 'Erster Start: Lege ein Passwort für dieses Webinterface fest (mind. 8 Zeichen).'
     : 'Bitte mit dem Passwort des Webinterfaces anmelden.';
@@ -583,6 +601,7 @@ $('settingsBtn').onclick = async () => {
   try {
     const [st, u] = await Promise.all([call('/api/settings'), call('/api/update')]);
     applyTheme(st.theme); renderAutoUpdate(st.auto_update); renderUpdateStatus(u);
+    $('hostsInput').value = (st.allowed_hosts || []).join('\n'); $('hostsMsg').textContent = '';
     $('runTime').value = st.run_time || '';
     $('runTime').disabled = $('runTimeBtn').disabled = !st.run_time_editable;
     $('runTimeMsg').className = 'msg muted';
@@ -632,6 +651,15 @@ $('updateCheckBtn').onclick = async () => {
   $('updateCheckBtn').disabled = true; $('updateStatus').textContent = 'Suche …';
   try { renderUpdateStatus(await call('/api/update/check', {})); refreshState(); } catch (e) { $('updateStatus').textContent = e.message; }
   $('updateCheckBtn').disabled = false;
+};
+$('hostsBtn').onclick = async () => {
+  const hosts = $('hostsInput').value.split(/[\s,]+/).filter(Boolean);
+  const msg = $('hostsMsg');
+  try {
+    const r = await call('/api/settings', {allowed_hosts: hosts});
+    $('hostsInput').value = r.allowed_hosts.join('\n');
+    msg.className = 'msg ok'; msg.textContent = r.allowed_hosts.length ? 'Gespeichert.' : 'Gespeichert – keine zusätzlichen Namen.';
+  } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; }
 };
 $('pwForm').onsubmit = async e => {
   e.preventDefault();

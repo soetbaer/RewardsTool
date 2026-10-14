@@ -109,6 +109,19 @@ if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('
 else
   sudo /usr/local/sbin/rewardstool-set-time on
 fi
+
+# Passwort für das Webinterface jetzt festlegen – im Browser geht die Ersteinrichtung nur auf dem Server selbst,
+# so kann niemand im Heimnetz zuvorkommen
+if [ -f "$DIR/data/webui_auth.json" ]; then
+  echo ">> Passwort für das Webinterface ist schon festgelegt (ändern: im Webinterface unter Einstellungen)"
+elif [ -t 0 ]; then
+  echo ">> Passwort für das Webinterface festlegen"
+  "$DIR/.venv/bin/python" "$DIR/webui.py" set-password
+else
+  echo "Hinweis: Kein Passwort für das Webinterface festgelegt. Nachholen mit:" >&2
+  echo "  $DIR/.venv/bin/python $DIR/webui.py set-password" >&2
+fi
+
 sudo systemctl enable rewardstool-web.service
 sudo systemctl restart rewardstool-web.service
 
@@ -118,4 +131,4 @@ systemctl list-timers rewardstool.timer --no-pager | head -n 2
 PORT=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('webui',{}).get('port',3333))" "$DIR/config.json")
 echo
 echo "Webinterface: http://$(hostname -I | awk '{print $1}'):$PORT"
-echo "Beim ersten Aufruf dort ein Passwort festlegen, danach über 'Microsoft-Anmeldung' anmelden."
+echo "Dort mit dem eben festgelegten Passwort anmelden, danach über 'Microsoft-Anmeldung' anmelden."

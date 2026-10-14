@@ -68,11 +68,13 @@ Erreichbarkeit (`config.json`, Bereich `webui`):
 |---|---|
 | `host` | `"auto"` (Vorgabe): Windows nur vom eigenen PC (`127.0.0.1`), Linux-Server im ganzen Heimnetz (`0.0.0.0`). `"0.0.0.0"` erlaubt auch unter Windows den Zugriff vom Handy oder anderen Geräten im Heimnetz. |
 | `port` | Port des Webinterfaces (Standard `3333`) |
-| `allowed_hosts` | Liste zusätzlicher Namen, unter denen das Webinterface aufgerufen wird, z. B. `["rewards.meinheim.de"]`. Ohne Eintrag gelten IP-Adressen, Namen ohne Punkt (`localhost`, `raspberrypi`) und der Rechnername mit üblichen Heimnetz-Endungen (`.fritz.box`, `.local`, `.lan` …). Andere Namen weist das Webinterface ab (Schutz gegen DNS-Rebinding). |
+| `allowed_hosts` | Liste zusätzlicher Namen, unter denen das Webinterface aufgerufen wird, z. B. `["rewards.meinheim.de"]`. Einfacher: im Webinterface unter **Einstellungen → Zugriff über eigene Adressen** (gespeichert in `data/settings.json`). Ohne Eintrag gelten IP-Adressen, Namen ohne Punkt (`localhost`, `raspberrypi`) und der Rechnername mit üblichen Heimnetz-Endungen (`.fritz.box`, `.local`, `.lan` …). Andere Namen weist das Webinterface ab (Schutz gegen DNS-Rebinding). |
 
 Nach 10 falschen Passwörtern innerhalb von 15 Minuten sperrt das Webinterface das betreffende Gerät für 15 Minuten.
 
-- **Erster Aufruf:** Passwort für das Webinterface festlegen.
+- **Passwort:** wird bei der Einrichtung festgelegt (`install.sh` bzw. `Setup.bat`), sonst mit
+  `python webui.py set-password` auf dem Rechner selbst. Im Browser ist die Ersteinrichtung nur von diesem Rechner
+  aus möglich (127.0.0.1), damit niemand im Netzwerk zuvorkommt.
 - **Microsoft-Anmeldung:** zeigt den Browser des Servers als Live-Bild. Hineinklicken und tippen wie gewohnt,
   zuerst auf der Rewards-Seite, dann auf bing.com oben rechts; danach „Fertig – Anmeldung prüfen“.
   Das Microsoft-Passwort wird nicht gespeichert.
@@ -119,7 +121,7 @@ schreiben, committen und das Tag `v<Version>` pushen. Der Workflow `.github/work
 
 **Sicherheit:** Das Webinterface spricht unverschlüsseltes HTTP. Nur im eigenen Heimnetz verwenden und
 **keine Portfreigabe im Router** einrichten – bei der Microsoft-Anmeldung laufen die Eingaben über diese Verbindung.
-Passwort vergessen: auf dem Server `data/webui_auth.json` löschen, dann beim nächsten Aufruf neu festlegen.
+Passwort vergessen: auf dem Server `.venv/bin/python webui.py set-password`, dann `sudo systemctl restart rewardstool-web`.
 
 ## Auf einem Linux-Server betreiben
 

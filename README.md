@@ -122,8 +122,9 @@ einfach **Enter** drücken, dann wird die empfohlene Einstellung genommen:
 | Programmpakete werden installiert | nichts – warten (1–3 Minuten) |
 | **Microsoft-Anmeldung:** ein Browserfenster mit zwei Tabs öffnet sich | Tab 1: mit deinem Microsoft-Konto anmelden („Angemeldet bleiben?“ → **Ja**). Tab 2 (bing.com): oben rechts ebenfalls anmelden. Dann zurück ins Setup-Fenster und **Enter** drücken. |
 | Frage nach der **Uhrzeit** für den täglichen Lauf | z. B. `09:00` eintippen oder einfach **Enter** |
+| Frage nach einem **Passwort für das Webinterface** | Ein Passwort ausdenken (mind. 8 Zeichen) und zweimal eintippen – die Eingabe bleibt unsichtbar |
 | Frage „Webinterface automatisch mit Windows starten?“ | **Enter** (= Ja) |
-| „Fertig!“ – dein Browser öffnet das Webinterface | Dort ein **Passwort für das Webinterface** festlegen |
+| „Fertig!“ – dein Browser öffnet das Webinterface | Mit dem eben festgelegten Passwort anmelden |
 
 Das war's. Auf deinem Desktop liegt jetzt die Verknüpfung **„RewardsTool“** – darüber öffnest du jederzeit das
 [Webinterface](#das-webinterface), siehst deine Punkte und kannst einen Lauf starten.
@@ -159,7 +160,8 @@ cd RewardsTool
 bash deploy/install.sh 08:00
 ```
 
-Zwischendurch wird ggf. dein Passwort für `sudo` abgefragt. Am Ende steht die Adresse des Webinterfaces, z. B.
+Zwischendurch wird ggf. dein Passwort für `sudo` abgefragt. Gegen Ende legst du ein **Passwort für das
+Webinterface** fest (mind. 8 Zeichen, zweimal eintippen, die Eingabe bleibt unsichtbar). Am Ende steht die Adresse des Webinterfaces, z. B.
 `Webinterface: http://192.168.178.20:3333`.
 
 Tipp: Stelle die Zeitzone richtig ein, damit „08:00“ auch 8 Uhr deutscher Zeit ist:
@@ -171,8 +173,7 @@ sudo timedatectl set-timezone Europe/Berlin
 ### Schritt 2 – Webinterface öffnen und anmelden
 
 1. Öffne die angezeigte Adresse (z. B. `http://192.168.178.20:3333`) im Browser an deinem PC oder Handy.
-2. Beim ersten Aufruf legst du ein **Passwort für das Webinterface** fest (mind. 8 Zeichen). **Mach das direkt
-   nach der Installation** – bis dahin könnte das jeder in deinem Heimnetz tun.
+2. Melde dich mit dem **Passwort für das Webinterface** an, das du am Ende von `install.sh` festgelegt hast.
 3. Klicke auf **„Microsoft-Anmeldung“** und melde dich an (siehe unten).
 
 Ab jetzt läuft alles automatisch. Den Server musst du nicht mehr per PuTTY anfassen.
@@ -181,9 +182,8 @@ Ab jetzt läuft alles automatisch. Den Server musst du nicht mehr per PuTTY anfa
 
 ## Das Webinterface
 
-Beim **allerersten Aufruf** legst du ein Passwort für das Webinterface fest – danach meldest du dich damit an:
-
-<img src="docs/screenshots/passwort.png" alt="Passwort für das Webinterface festlegen" width="360">
+Das Passwort für das Webinterface legst du bei der Einrichtung fest (`Setup.bat` bzw. `install.sh`). Im Browser
+geht das nur am Rechner selbst – so kann dir niemand im Heimnetz zuvorkommen.
 
 **Oben:** Punktestand (mit Punkten, die bereit zum Anfordern sind), Fortschritt der PC-Suche, dein in Rewards
 gesetztes **Ziel** mit Fortschritt, letzter Lauf, nächster geplanter Lauf.
@@ -233,10 +233,10 @@ Im Fuß der Seite steht die installierte Version.
 | **Suchen werden nicht gezählt** | Im Verlauf „Log“ öffnen und nach „NICHT gezählt“ suchen. Meist hilft neu anmelden. |
 | Setup meldet **„Python konnte nicht automatisch installiert werden“** | Python von <https://www.python.org/downloads/> installieren, dabei den Haken **„Add python.exe to PATH“** setzen, dann `Setup.bat` erneut starten. |
 | Update-Prüfung meldet **„CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate“** | Python konnte das HTTPS-Zertifikat von GitHub nicht prüfen (fehlendes Stammzertifikat oder Virenscanner/Firmen-Proxy mit eigenem Zertifikat). Ab der nächsten Version nach 1.1.5 behoben – dieses Update einmal **von Hand** installieren (siehe „Update auf eine neue Version“). |
-| Webinterface meldet **„Unbekannter Hostname“** | Über die IP-Adresse aufrufen (z. B. `http://192.168.178.20:3333`) oder den verwendeten Namen in der `config.json` unter `webui` → `allowed_hosts` eintragen (siehe [TECHNIK.md](TECHNIK.md)). |
+| Webinterface meldet **„nicht freigegeben“** (Aufruf über eine eigene Domain) | Webinterface einmal über die IP-Adresse öffnen (z. B. `http://192.168.178.20:3333`), dann unter **Einstellungen → Zugriff über eigene Adressen** den Namen eintragen. |
 | **„Zu viele Fehlversuche“** beim Anmelden am Webinterface | 15 Minuten warten. Passwort vergessen? Siehe „Webinterface-Passwort vergessen“ weiter unten. |
 | Webinterface öffnet sich nicht (Windows) | Doppelklick auf `windows\Webinterface-starten.bat`. |
-| **Webinterface-Passwort vergessen** | Im RewardsTool-Ordner die Datei `data\webui_auth.json` löschen (Server: `rm ~/RewardsTool/data/webui_auth.json`). Beim nächsten Aufruf neues Passwort festlegen. |
+| **Webinterface-Passwort vergessen** | **Windows:** `Setup.bat` erneut starten und bei „Passwort … ändern?“ **j** eingeben. **Server:** `~/RewardsTool/.venv/bin/python ~/RewardsTool/webui.py set-password`, danach `sudo systemctl restart rewardstool-web`. |
 | Webinterface **nicht erreichbar** (Server) | Richtige IP-Adresse? Läuft der Dienst? Auf dem Server: `sudo systemctl restart rewardstool-web` |
 | Ein Lauf bringt **+0 Punkte** | Alles für heute ist schon erledigt – das ist normal. |
 

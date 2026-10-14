@@ -6,6 +6,7 @@ DEFAULTS = {
     "theme": "auto",          # auto | light | dark
     "auto_update": False,     # Updates automatisch installieren
     "daily_run": True,        # täglicher Lauf (Timer) an/aus
+    "allowed_hosts": [],      # zusätzliche Namen, unter denen das Webinterface aufgerufen werden darf
 }
 THEMES = ("auto", "light", "dark")
 

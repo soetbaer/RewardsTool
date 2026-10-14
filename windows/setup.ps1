@@ -206,6 +206,41 @@ if ($SkipSystem) {
 
 # ---------------------------------------------------------------- 5. Webinterface
 Step 5 'Webinterface einrichten'
+
+# Passwort hier festlegen – im Browser geht die Ersteinrichtung nur am PC selbst, so kommt niemand zuvor
+function Read-Plain($prompt) {
+    $secure = Read-Host $prompt -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+}
+$authFile = Join-Path $Root 'data\webui_auth.json'
+$setPw = $false
+if ($SkipSystem) {
+    Info 'Testmodus: Passwort für das Webinterface übersprungen.'
+} elseif (Test-Path $authFile) {
+    $setPw = Ask-YesNo 'Passwort für das Webinterface ist schon festgelegt. Ändern?' $false
+} else {
+    Info 'Lege ein Passwort für das Webinterface fest (mind. 8 Zeichen). Es schützt den Zugriff auf deine Punkte'
+    Info 'und die Microsoft-Anmeldung.'
+    $setPw = $true
+}
+while ($setPw) {
+    $pw = Read-Plain '      Passwort'
+    if ($pw.Length -lt 8) { Write-Host '      Zu kurz – bitte mindestens 8 Zeichen.' -ForegroundColor Yellow; continue }
+    if ((Read-Plain '      Passwort wiederholen') -ne $pw) {
+        Write-Host '      Die Passwörter stimmen nicht überein.' -ForegroundColor Yellow; continue
+    }
+    # Über stdin, nicht als Argument – sonst wäre es in der Prozessliste sichtbar
+    $ErrorActionPreference = 'Continue'
+    $pw | & $VenvPy (Join-Path $Root 'webui.py') set-password
+    $ok = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = 'Stop'
+    $pw = $null
+    if ($ok) { Info 'Passwort gespeichert.'; break }
+    Write-Host '      Passwort konnte nicht gespeichert werden.' -ForegroundColor Yellow
+    if (-not (Ask-YesNo 'Noch einmal versuchen?')) { break }
+}
 $url = 'http://localhost:3333'
 try {
     $port = (Get-Content (Join-Path $Root 'config.json') -Raw -Encoding UTF8 | ConvertFrom-Json).webui.port
@@ -244,7 +279,7 @@ Write-Host '=================================================' -ForegroundColor 
 Write-Host '  Fertig!' -ForegroundColor Green
 Write-Host '=================================================' -ForegroundColor Green
 Write-Host "  Webinterface: $url  (Desktop-Verknüpfung 'RewardsTool')"
-Write-Host '  Beim ersten Öffnen dort ein Passwort für das Webinterface festlegen.'
+Write-Host '  Anmelden mit dem eben festgelegten Passwort.'
 Write-Host '  Dort kannst du Läufe starten, den Status sehen und dich neu anmelden.'
 Write-Host ''
 exit 0

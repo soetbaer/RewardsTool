@@ -327,18 +327,49 @@ def host_allowed(host_header: str) -> bool:
         return True
     except ValueError:
         pass
-    extra = {h.lower() for h in cfg.get("webui", {}).get("allowed_hosts", []) if isinstance(h, str)}
     own = socket.gethostname().lower().split(".")[0]
-    return (host in extra or "." not in host or host.endswith(".localhost")
-            or host in {own} | {f"{own}.{suffix}" for suffix in LOCAL_SUFFIXES})
+    if "." not in host or host.endswith(".localhost") or host in {own} | {f"{own}.{s}" for s in LOCAL_SUFFIXES}:
+        return True
+    return host in extra_hosts()
+
+
+def extra_hosts() -> set[str]:
+    """Freigegebene Namen aus config.json (webui.allowed_hosts) und aus den Einstellungen im Webinterface."""
+    names = cfg.get("webui", {}).get("allowed_hosts", [])
+    names = (names if isinstance(names, list) else []) + settings.load()["allowed_hosts"]
+    return {h.lower() for h in names if isinstance(h, str)}
+
+
+HOSTNAME_RE = re.compile(r"(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}")
+
+
+def normalize_host(text: str) -> str | None:
+    """'https://Rewards.Example.de:3333/' -> 'rewards.example.de'; None bei ungültigem Namen."""
+    host = re.sub(r"^[a-z][a-z0-9+.-]*://", "", (text or "").strip().lower()).split("/", 1)[0]
+    host = re.sub(r":\d+$", "", host).rstrip(".")
+    return host if HOSTNAME_RE.fullmatch(host) else None
+
+
+def is_local_request() -> bool:
+    """Anfrage kommt vom Rechner selbst (nicht aus dem Netzwerk)."""
+    try:
+        return ipaddress.ip_address(request.remote_addr or "").is_loopback
+    except ValueError:
+        return False
 
 
 @app.before_request
 def check_host():
     if not host_allowed(request.host):
         log.warning("Aufruf mit unbekanntem Host '%s' abgewiesen (von %s)", request.host, request.remote_addr)
-        return Response("Unbekannter Hostname. Webinterface über die IP-Adresse aufrufen oder den Namen in "
-                        "config.json unter webui.allowed_hosts eintragen.", status=421, mimetype="text/plain")
+        name = request.host.rsplit(":", 1)[0] if not request.host.endswith("]") else request.host
+        return Response(
+            f"Die Adresse '{name}' ist für das RewardsTool-Webinterface nicht freigegeben.\n\n"
+            "So gibst du sie frei:\n"
+            "  1. Webinterface über die IP-Adresse des Rechners öffnen, z. B. http://192.168.178.20:3333\n"
+            f"  2. Einstellungen -> Zugriff über eigene Adressen: '{name}' eintragen und speichern\n\n"
+            "(Schutz gegen fremde Webseiten, die sich als dein Webinterface ausgeben.)\n",
+            status=421, mimetype="text/plain; charset=utf-8")
     return None
 
 
@@ -356,7 +387,8 @@ def brand_asset(name):
 
 @app.get("/api/auth")
 def auth_status():
-    return jsonify(configured=auth_configured(), logged_in=logged_in(), theme=settings.load()["theme"])
+    return jsonify(configured=auth_configured(), logged_in=logged_in(), theme=settings.load()["theme"],
+                   setup_allowed=is_local_request())
 
 
 @app.post("/api/setup")
@@ -365,6 +397,10 @@ def setup():
         abort(403)
     if not same_origin():
         return jsonify(error="ungültige Anfrage"), 400
+    if not is_local_request():
+        # Sonst könnte jeder im Netzwerk vor dir ein Passwort festlegen
+        return jsonify(error="Das Passwort wird bei der Einrichtung festgelegt. Auf dem Rechner selbst: "
+                             "python webui.py set-password"), 403
     password = (request.json or {}).get("password", "")
     if len(password) < 8:
         return jsonify(error="Mindestens 8 Zeichen"), 400
@@ -641,6 +677,19 @@ def save_settings():
         changes["theme"] = data["theme"]
     if "auto_update" in data:
         changes["auto_update"] = bool(data["auto_update"])
+    if "allowed_hosts" in data:
+        raw = data["allowed_hosts"]
+        if not isinstance(raw, list) or len(raw) > 20:
+            abort(400)
+        hosts = []
+        for item in raw:
+            host = normalize_host(item if isinstance(item, str) else "")
+            if not host:
+                return jsonify(error=f"Ungültiger Name: {item}"), 400
+            if host not in hosts:
+                hosts.append(host)
+        changes["allowed_hosts"] = hosts
+        log.info("Freigegebene Adressen für das Webinterface: %s", ", ".join(hosts) or "keine")
     return jsonify(settings.save(**changes))
 
 
@@ -816,5 +865,31 @@ def main():
         app.run(host=host, port=port, threaded=True)
 
 
+def cli_set_password() -> int:
+    """python webui.py set-password – Passwort auf dem Rechner selbst festlegen (Setup, vergessenes Passwort).
+    Interaktiv mit verdeckter Eingabe; sonst wird das Passwort als erste Zeile von stdin gelesen (für Skripte)."""
+    if not sys.stdin.isatty():
+        password = sys.stdin.buffer.readline().decode("utf-8-sig").rstrip("\r\n")
+        if len(password) < 8:
+            print("Passwort zu kurz (mindestens 8 Zeichen).", file=sys.stderr)
+            return 1
+        set_password(password)
+        return 0
+    import getpass
+    while True:
+        password = getpass.getpass("Passwort für das Webinterface (mind. 8 Zeichen): ")
+        if len(password) < 8:
+            print("Zu kurz – bitte mindestens 8 Zeichen.")
+            continue
+        if getpass.getpass("Passwort wiederholen: ") != password:
+            print("Die Passwörter stimmen nicht überein.")
+            continue
+        set_password(password)
+        print("Passwort gespeichert. Bereits angemeldete Geräte werden beim nächsten Neustart abgemeldet.")
+        return 0
+
+
 if __name__ == "__main__":
+    if sys.argv[1:] == ["set-password"]:
+        sys.exit(cli_set_password())
     main()
