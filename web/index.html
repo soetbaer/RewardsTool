@@ -345,7 +345,8 @@ $('authForm').onsubmit = async e => {
   const pw = $('authPw').value;
   if (setupMode && pw !== $('authPw2').value) { $('authErr').textContent = 'Passwörter stimmen nicht überein.'; return; }
   const r = await fetch(setupMode ? '/api/setup' : '/api/login',
-    {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password: pw})});
+    {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'RewardsTool'},
+     body: JSON.stringify({password: pw})});
   if (r.ok) { hide('authView'); startApp(); }
   else $('authErr').textContent = (await r.json()).error || 'Fehler';
 };

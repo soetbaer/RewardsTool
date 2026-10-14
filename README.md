@@ -233,6 +233,8 @@ Im Fuß der Seite steht die installierte Version.
 | **Suchen werden nicht gezählt** | Im Verlauf „Log“ öffnen und nach „NICHT gezählt“ suchen. Meist hilft neu anmelden. |
 | Setup meldet **„Python konnte nicht automatisch installiert werden“** | Python von <https://www.python.org/downloads/> installieren, dabei den Haken **„Add python.exe to PATH“** setzen, dann `Setup.bat` erneut starten. |
 | Update-Prüfung meldet **„CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate“** | Python konnte das HTTPS-Zertifikat von GitHub nicht prüfen (fehlendes Stammzertifikat oder Virenscanner/Firmen-Proxy mit eigenem Zertifikat). Ab der nächsten Version nach 1.1.5 behoben – dieses Update einmal **von Hand** installieren (siehe „Update auf eine neue Version“). |
+| Webinterface meldet **„Unbekannter Hostname“** | Über die IP-Adresse aufrufen (z. B. `http://192.168.178.20:3333`) oder den verwendeten Namen in der `config.json` unter `webui` → `allowed_hosts` eintragen (siehe [TECHNIK.md](TECHNIK.md)). |
+| **„Zu viele Fehlversuche“** beim Anmelden am Webinterface | 15 Minuten warten. Passwort vergessen? Siehe „Webinterface-Passwort vergessen“ weiter unten. |
 | Webinterface öffnet sich nicht (Windows) | Doppelklick auf `windows\Webinterface-starten.bat`. |
 | **Webinterface-Passwort vergessen** | Im RewardsTool-Ordner die Datei `data\webui_auth.json` löschen (Server: `rm ~/RewardsTool/data/webui_auth.json`). Beim nächsten Aufruf neues Passwort festlegen. |
 | Webinterface **nicht erreichbar** (Server) | Richtige IP-Adresse? Läuft der Dienst? Auf dem Server: `sudo systemctl restart rewardstool-web` |
@@ -245,6 +247,9 @@ Im Fuß der Seite steht die installierte Version.
 - Alles bleibt auf **deinem** Rechner. Das Tool schickt nichts an Dritte, nur die normalen Aufrufe an Microsoft/Bing.
 - Das Webinterface ist **nur für dein Heimnetz** gedacht. Es nutzt keine Verschlüsselung (HTTP).
   **Richte im Router keine Portfreigabe dafür ein.** Für Zugriff von unterwegs: VPN ins Heimnetz (z. B. FRITZ!Box-VPN, WireGuard).
+- Unter **Windows** ist das Webinterface nur am eigenen PC erreichbar. Soll es auch vom Handy aus gehen, in der
+  `config.json` unter `webui` den Eintrag `"host": "auto"` in `"host": "0.0.0.0"` ändern und das Webinterface neu
+  starten. Aufruf dann über `http://<IP-Adresse des PCs>:3333` (siehe [TECHNIK.md](TECHNIK.md)).
 - Gespeichert werden: Anmeldung (`profile`), Punktestand und Verlauf (`data`), Protokolle (`logs`), Screenshots
   zur Fehlersuche (`debug`). Diese Ordner gehören nur dir – **nicht weitergeben**.
 

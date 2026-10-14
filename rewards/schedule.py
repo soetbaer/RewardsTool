@@ -83,8 +83,13 @@ def set_enabled(on: bool) -> str | None:
         return None
     if not shutil.which("systemctl"):
         return None
-    res = _run(["sudo", "-n", LINUX_HELPER, "on" if on else "off"]) if os.path.exists(LINUX_HELPER) else None
-    if res is None or res.returncode != 0:
-        return ("Der Timer selbst läuft weiter, seine Läufe werden aber übersprungen. Zum vollständigen Abschalten "
-                "einmal 'bash deploy/install.sh' erneut ausführen.") if not on else None
-    return None
+    if not os.path.exists(LINUX_HELPER):
+        return None if on else ("Der Timer selbst läuft weiter, seine Läufe werden aber übersprungen. Zum vollständigen "
+                                "Abschalten einmal 'bash deploy/install.sh' erneut ausführen.")
+    res = _run(["sudo", "-n", LINUX_HELPER, "on" if on else "off"])
+    if res.returncode == 0:
+        return None
+    detail = _decode(res.stderr).strip()[:200]
+    if on:
+        return f"Der Timer konnte nicht eingeschaltet werden – es finden keine täglichen Läufe statt. {detail}".strip()
+    return f"Der Timer läuft weiter, seine Läufe werden aber übersprungen. {detail}".strip()

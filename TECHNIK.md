@@ -62,6 +62,16 @@ Logs: `logs/rewards.log`
 `deploy/install.sh` richtet den Dienst `rewardstool-web` ein. Aufruf: `http://<server-ip>:3333`
 (Port in `config.json` unter `webui.port`).
 
+Erreichbarkeit (`config.json`, Bereich `webui`):
+
+| Eintrag | Bedeutung |
+|---|---|
+| `host` | `"auto"` (Vorgabe): Windows nur vom eigenen PC (`127.0.0.1`), Linux-Server im ganzen Heimnetz (`0.0.0.0`). `"0.0.0.0"` erlaubt auch unter Windows den Zugriff vom Handy oder anderen Geräten im Heimnetz. |
+| `port` | Port des Webinterfaces (Standard `3333`) |
+| `allowed_hosts` | Liste zusätzlicher Namen, unter denen das Webinterface aufgerufen wird, z. B. `["rewards.meinheim.de"]`. Ohne Eintrag gelten IP-Adressen, Namen ohne Punkt (`localhost`, `raspberrypi`) und der Rechnername mit üblichen Heimnetz-Endungen (`.fritz.box`, `.local`, `.lan` …). Andere Namen weist das Webinterface ab (Schutz gegen DNS-Rebinding). |
+
+Nach 10 falschen Passwörtern innerhalb von 15 Minuten sperrt das Webinterface das betreffende Gerät für 15 Minuten.
+
 - **Erster Aufruf:** Passwort für das Webinterface festlegen.
 - **Microsoft-Anmeldung:** zeigt den Browser des Servers als Live-Bild. Hineinklicken und tippen wie gewohnt,
   zuerst auf der Rewards-Seite, dann auf bing.com oben rechts; danach „Fertig – Anmeldung prüfen“.

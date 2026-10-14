@@ -36,7 +36,7 @@ Type=oneshot
 User=$RUN_USER
 WorkingDirectory=$DIR
 # Browser mit Fenster auf virtuellem Bildschirm: "Auf Bing erkunden" wird nur so gutgeschrieben
-ExecStart=/usr/bin/xvfb-run -a --server-args="-screen 0 1366x900x24" $DIR/.venv/bin/python $DIR/main.py run
+ExecStart=/usr/bin/xvfb-run -a --server-args="-screen 0 1366x900x24" "$DIR/.venv/bin/python" "$DIR/main.py" run
 Environment=REWARDS_TRIGGER=timer
 TimeoutStartSec=2h
 EOF
@@ -49,8 +49,9 @@ sudo tee /usr/local/sbin/rewardstool-set-time >/dev/null <<'HELPER'
 # Täglicher RewardsTool-Lauf. Aufruf: rewardstool-set-time HH:MM | on | off
 set -eu
 case "${1:-}" in
-  on)  systemctl enable --now rewardstool.timer >/dev/null 2>&1; exit 0 ;;
-  off) systemctl disable --now rewardstool.timer >/dev/null 2>&1; exit 0 ;;
+  # Fehler von systemctl durchreichen (Exit-Code und Meldung), damit das Webinterface sie anzeigen kann
+  on)  systemctl enable --now rewardstool.timer >/dev/null; exit 0 ;;
+  off) systemctl disable --now rewardstool.timer >/dev/null; exit 0 ;;
   [01][0-9]:[0-5][0-9]|2[0-3]:[0-5][0-9]) ;;
   *) echo "Ungültig: ${1:-} (HH:MM, on oder off)" >&2; exit 2 ;;
 esac
@@ -91,7 +92,7 @@ User=$RUN_USER
 WorkingDirectory=$DIR
 Environment=PYTHONUNBUFFERED=1
 # Virtueller Bildschirm: Läufe und die Microsoft-Anmeldung laufen mit sichtbarem Browser
-ExecStart=/usr/bin/xvfb-run -a $DIR/.venv/bin/python $DIR/webui.py
+ExecStart=/usr/bin/xvfb-run -a "$DIR/.venv/bin/python" "$DIR/webui.py"
 Restart=on-failure
 RestartSec=5
 
@@ -102,7 +103,7 @@ EOF
 sudo systemctl daemon-reload
 sudo /usr/local/sbin/rewardstool-set-time "$TIME"
 # Täglichen Lauf einschalten – außer er wurde im Webinterface ausgeschaltet
-if python3 -c "import json,sys; sys.exit(0 if json.load(open('$DIR/data/settings.json')).get('daily_run', True) is False else 1)" 2>/dev/null; then
+if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('daily_run', True) is False else 1)" "$DIR/data/settings.json" 2>/dev/null; then
   sudo /usr/local/sbin/rewardstool-set-time off
   echo "Hinweis: Der tägliche Lauf ist im Webinterface ausgeschaltet und bleibt aus."
 else
@@ -114,7 +115,7 @@ sudo systemctl restart rewardstool-web.service
 echo
 echo "Fertig. Nächster Lauf:"
 systemctl list-timers rewardstool.timer --no-pager | head -n 2
-PORT=$(python3 -c "import json;print(json.load(open('$DIR/config.json')).get('webui',{}).get('port',3333))")
+PORT=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('webui',{}).get('port',3333))" "$DIR/config.json")
 echo
 echo "Webinterface: http://$(hostname -I | awk '{print $1}'):$PORT"
 echo "Beim ersten Aufruf dort ein Passwort festlegen, danach über 'Microsoft-Anmeldung' anmelden."

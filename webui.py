@@ -6,6 +6,7 @@ Aufruf: http://<server-ip>:3333
 import concurrent.futures
 import hashlib
 import hmac
+import ipaddress
 import os
 import queue
 import re
@@ -36,6 +37,11 @@ SESSION_MAX_AGE = 7 * 24 * 3600
 LOGIN_IDLE_TIMEOUT = 15 * 60
 UPDATE_CHECK_INTERVAL = 6 * 3600
 CANCEL_GRACE = 60  # so lange darf ein Lauf zum sauberen Abbrechen brauchen, danach wird er beendet
+# Namen des Rechners im Heimnetz, unter denen das Webinterface aufgerufen werden darf (<rechnername>.<endung>)
+LOCAL_SUFFIXES = ("local", "lan", "home", "home.arpa", "internal", "localdomain", "fritz.box", "speedport.ip")
+LOGIN_FAIL_DELAY = 1.5  # Pause nach falschem Passwort
+LOGIN_MAX_FAILS = 10  # so viele Fehlversuche je Gerät ...
+LOGIN_LOCK_TIME = 15 * 60  # ... sperren dieses Gerät für 15 Minuten
 
 app = Flask(__name__, static_folder=None)
 cfg = load_config(BASE / "config.json")
@@ -45,6 +51,8 @@ run_proc: subprocess.Popen | None = None
 refresh_proc: subprocess.Popen | None = None
 ms_session = None  # aktive Microsoft-Anmeldung (MsLoginSession)
 update_job = {"state": "idle", "message": "", "error": None}  # idle | running | restarting | error
+login_lock = threading.Lock()  # Passwortprüfungen nacheinander – parallele Rateversuche bringen nichts
+login_fails: dict[str, list[float]] = {}  # IP-Adresse -> Zeitpunkte der letzten Fehlversuche
 
 
 # ---------- Passwort für das Webinterface ----------
@@ -73,6 +81,25 @@ def set_password(password: str) -> None:
         pass
 
 
+def verify_password(password: str) -> str | None:
+    """Prüft das Passwort mit Bremse gegen Rateversuche. Rückgabe: Fehlermeldung oder None (richtig)."""
+    ip = request.remote_addr or "?"
+    with login_lock:
+        now = time.time()
+        fails = [t for t in login_fails.get(ip, []) if now - t < LOGIN_LOCK_TIME]
+        if len(fails) >= LOGIN_MAX_FAILS:
+            login_fails[ip] = fails
+            minutes = int((fails[0] + LOGIN_LOCK_TIME - now) // 60) + 1
+            return f"Zu viele Fehlversuche – bitte in {minutes} Minuten erneut versuchen"
+        if check_password(password):
+            login_fails.pop(ip, None)
+            return None
+        login_fails[ip] = fails + [now]
+        log.warning("Falsches Passwort für das Webinterface (von %s)", ip)
+        time.sleep(LOGIN_FAIL_DELAY)
+        return "Falsches Passwort"
+
+
 def new_session() -> str:
     token = secrets.token_urlsafe(32)
     sessions[token] = time.time() + SESSION_MAX_AGE
@@ -85,13 +112,19 @@ def logged_in() -> bool:
     return bool(exp and exp > time.time())
 
 
+def same_origin() -> bool:
+    """Schreibende Aufrufe nur per fetch der eigenen Seite: der Header erzwingt bei fremden Seiten eine
+    CORS-Vorabfrage, die das Webinterface nicht erlaubt (Schutz gegen fremde Formulare)."""
+    return request.headers.get("X-Requested-With") == "RewardsTool"
+
+
 def api(fn):
     """Nur für angemeldete Nutzer; schreibende Aufrufe zusätzlich nur per fetch (Schutz gegen fremde Formulare)."""
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not logged_in():
             return jsonify(error="nicht angemeldet"), 401
-        if request.method == "POST" and request.headers.get("X-Requested-With") != "RewardsTool":
+        if request.method == "POST" and not same_origin():
             return jsonify(error="ungültige Anfrage"), 400
         return fn(*args, **kwargs)
     return wrapper
@@ -274,6 +307,41 @@ def ms_required(fn):
     return wrapper
 
 
+# ---------- Zugriffsschutz: Host-Header (DNS-Rebinding) ----------
+
+def host_allowed(host_header: str) -> bool:
+    """Nur Aufrufe über eine IP-Adresse, einen Namen ohne Punkt (localhost, raspberrypi), den eigenen Rechnernamen
+    im Heimnetz (z. B. raspberrypi.fritz.box) oder einen in config.json (webui.allowed_hosts) eingetragenen Namen.
+    Eine fremde Webseite, die ihre Domain per DNS-Rebinding auf diesen Rechner umlenkt, schickt ihren eigenen
+    Domainnamen mit – und wird abgewiesen."""
+    host = (host_header or "").strip().lower()
+    if host.startswith("["):  # IPv6: [::1]:3333
+        host = host[1:].split("]", 1)[0]
+    elif host.count(":") == 1:
+        host = host.split(":", 1)[0]
+    host = host.rstrip(".")
+    if not host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+    extra = {h.lower() for h in cfg.get("webui", {}).get("allowed_hosts", []) if isinstance(h, str)}
+    own = socket.gethostname().lower().split(".")[0]
+    return (host in extra or "." not in host or host.endswith(".localhost")
+            or host in {own} | {f"{own}.{suffix}" for suffix in LOCAL_SUFFIXES})
+
+
+@app.before_request
+def check_host():
+    if not host_allowed(request.host):
+        log.warning("Aufruf mit unbekanntem Host '%s' abgewiesen (von %s)", request.host, request.remote_addr)
+        return Response("Unbekannter Hostname. Webinterface über die IP-Adresse aufrufen oder den Namen in "
+                        "config.json unter webui.allowed_hosts eintragen.", status=421, mimetype="text/plain")
+    return None
+
+
 # ---------- Routen: Seite & Webinterface-Login ----------
 
 @app.get("/")
@@ -295,6 +363,8 @@ def auth_status():
 def setup():
     if auth_configured():
         abort(403)
+    if not same_origin():
+        return jsonify(error="ungültige Anfrage"), 400
     password = (request.json or {}).get("password", "")
     if len(password) < 8:
         return jsonify(error="Mindestens 8 Zeichen"), 400
@@ -304,10 +374,11 @@ def setup():
 
 @app.post("/api/login")
 def login():
-    password = (request.json or {}).get("password", "")
-    if not check_password(password):
-        time.sleep(1.5)  # bremst Rateversuche
-        return jsonify(error="Falsches Passwort"), 403
+    if not same_origin():
+        return jsonify(error="ungültige Anfrage"), 400
+    error = verify_password((request.json or {}).get("password", ""))
+    if error:
+        return jsonify(error=error), 403
     return with_session_cookie(jsonify(ok=True), new_session())
 
 
@@ -601,9 +672,9 @@ def set_daily_run():
 @api
 def change_password():
     data = request.json or {}
-    if not check_password(data.get("current", "")):
-        time.sleep(1.5)
-        return jsonify(error="Aktuelles Passwort ist falsch"), 403
+    error = verify_password(data.get("current", ""))
+    if error:
+        return jsonify(error="Aktuelles Passwort ist falsch" if error == "Falsches Passwort" else error), 403
     new = data.get("new", "")
     if len(new) < 8:
         return jsonify(error="Mindestens 8 Zeichen"), 400
@@ -716,10 +787,17 @@ def _wait_for_port(host: str, port: int, seconds: int = 30) -> None:
                 time.sleep(0.5)
 
 
+def listen_host(value) -> str:
+    """"auto" (Vorgabe): Windows nur dieser PC (127.0.0.1), Linux-Server das ganze Heimnetz (0.0.0.0)."""
+    if not value or value == "auto":
+        return "127.0.0.1" if os.name == "nt" else "0.0.0.0"
+    return value
+
+
 def main():
     setup_logging(BASE / "logs")
     web = cfg.get("webui", {})
-    host, port = web.get("host", "0.0.0.0"), int(web.get("port", 3333))
+    host, port = listen_host(web.get("host")), int(web.get("port", 3333))
     if os.environ.pop("REWARDS_RESTART", None):
         now = time.time()
         sessions.update({t: exp for t, exp in (runstate.read_json(RESTART_SESSIONS_FILE, {}) or {}).items()
