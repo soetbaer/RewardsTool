@@ -96,6 +96,30 @@
         "lyrics stairway to heaven",
         "lyrics perfect ed sheeran",
         "lyrics shallow"
+      ],
+      "dictionary": [
+        "Bedeutung Antiquität",
+        "Bedeutung Melancholie",
+        "Bedeutung Serendipität",
+        "Bedeutung Ambivalenz",
+        "Bedeutung Nostalgie",
+        "Bedeutung pragmatisch"
+      ],
+      "timezonedates": [
+        "Uhrzeit New York",
+        "Uhrzeit Tokio",
+        "Uhrzeit Sydney",
+        "Uhrzeit Los Angeles",
+        "Uhrzeit Bangkok",
+        "Uhrzeit Rio de Janeiro"
+      ],
+      "financemarket": [
+        "Aktienkurs Tesla",
+        "Aktienkurs Apple",
+        "Aktienkurs Microsoft",
+        "Aktienkurs Nvidia",
+        "Aktienkurs SAP",
+        "Aktienkurs Siemens"
       ]
     }
   },
