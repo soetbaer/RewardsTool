@@ -7,6 +7,7 @@ Bing lehnt den Upload bei manchen Konten ab (HTTP 400 von /images/kblob, auch be
 die Aufgabe mit einem klaren Hinweis übersprungen.
 """
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from . import dashboard
@@ -14,6 +15,7 @@ from .util import LOGIN_HINT, log, reject_consent
 
 STREAK_URL = "https://www.bing.com/?features=vsstreak,vstooltip&form=ML2XES"
 ARCHIVE_URL = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=de-DE"
+DEBUG_DIR = Path(__file__).resolve().parent.parent / "debug" / "visualsearch"
 
 
 class UploadRejected(Exception):
@@ -34,6 +36,23 @@ def _image_url(page) -> str | None:
         return None
 
 
+def _open_camera(page) -> None:
+    """Kamera-Symbol im Suchfeld anklicken. Bing blendet es teils erst ein, wenn das Suchfeld aktiv ist."""
+    camera = page.locator("#sb_sbi")
+    camera.wait_for(state="attached", timeout=10000)
+    if not camera.is_visible():
+        try:
+            page.locator("#sb_form_q").click(timeout=5000)
+            camera.wait_for(state="visible", timeout=3000)
+        except Exception:
+            pass
+    if camera.is_visible():
+        camera.click(timeout=10000)
+    else:
+        camera.evaluate("e => e.click()")  # unsichtbar: Klick per Skript, öffnet denselben Bild-Dialog
+    page.locator("#sb_fileinput").wait_for(state="attached", timeout=10000)
+
+
 def visual_search(page) -> bool:
     """Führt eine visuelle Suche aus; True, wenn eine Ergebnisseite geöffnet wurde."""
     page.goto(STREAK_URL, wait_until="load")
@@ -52,7 +71,7 @@ def visual_search(page) -> bool:
     with tempfile.TemporaryDirectory() as tmp:
         img = Path(tmp) / "bild.jpg"
         img.write_bytes(resp.body())
-        page.locator("#sb_sbi").click(timeout=10000)  # Kamera-Symbol im Suchfeld
+        _open_camera(page)
         page.wait_for_timeout(2000)
         page.locator("#sb_fileinput").set_input_files(str(img))
         for _ in range(20):  # Upload und Anheften abwarten
@@ -91,6 +110,14 @@ def run(ctx, cfg: dict) -> None:
     except UploadRejected as e:
         log.warning("Visuelle Suche übersprungen: Bing lehnt den Bild-Upload für dieses Konto ab (%s). "
                     "Das passiert auch bei der Suche von Hand – das Tool kann daran nichts ändern.", e)
+        return
+    except Exception as e:
+        try:
+            DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+            page.screenshot(path=str(DEBUG_DIR / f"{datetime.now():%Y%m%d-%H%M%S}_fehler.png"))
+        except Exception:
+            pass
+        log.warning("Visuelle Suche fehlgeschlagen: %s. Screenshot: %s", str(e).splitlines()[0], DEBUG_DIR)
         return
     finally:
         page.close()
