@@ -61,8 +61,8 @@ def bing_search(page, query: str) -> bool:
     """Sucht über das Bing-Suchfeld; True, wenn eine Ergebnisseite geöffnet wurde."""
     if "bing.com" not in page.url or page.locator("#sb_form_q").count() == 0:
         page.goto(BING, wait_until="load")
-        reject_consent(page)
     _wait_loaded(page)  # Auf langsamen Rechnern greift Enter sonst, bevor das Suchfeld bereit ist
+    reject_consent(page)  # Banner erscheinen teils erst nach dem Laden und fangen Klicks ab
     box = page.locator("#sb_form_q")
     box.click()
     box.fill("")

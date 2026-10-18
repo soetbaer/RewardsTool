@@ -86,12 +86,22 @@ def pause(bounds) -> None:
 
 
 def reject_consent(page) -> None:
-    """Klickt im Bing-Cookie-Banner auf 'Ablehnen', falls vorhanden."""
-    for sel in ("#bnp_btn_reject", "button:has-text('Ablehnen')", "button:has-text('Reject')"):
+    """Klickt im Bing-Cookie-Banner auf 'Ablehnen', falls vorhanden, und entfernt übrige Bing-Banner.
+
+    Manche Banner (z. B. „OverlayBanner_NoTitleRejectBtn“) legen eine Abdunklung über die Seite, die jeden Klick
+    abfängt – Suchfeld und Punkte-Symbol wären dann nicht mehr anklickbar.
+    """
+    for sel in ("#bnp_btn_reject", "button:has-text('Ablehnen')", "button:has-text('Reject')",
+                "[id^='bnp.'] [class*='reject' i]", "[id^='bnp.'] [class*='close' i]"):
         try:
             btn = page.locator(sel).first
             if btn.is_visible(timeout=1000):
-                btn.click()
-                return
+                btn.click(timeout=3000)
+                break
         except Exception:
             pass
+    try:
+        page.evaluate("() => document.querySelectorAll(\"[id^='bnp.'], .bnp_overlay_wrapper, #bnp_container\")"
+                      ".forEach(e => e.remove())")
+    except Exception:
+        pass

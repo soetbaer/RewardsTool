@@ -151,6 +151,7 @@ def _open_rewards_flyout(tab, act: dashboard.Activity) -> None:
     """
     tab.wait_for_timeout(4000)
     if not any(FLYOUT_FRAME in f.url for f in tab.frames):
+        reject_consent(tab)  # verzögert eingeblendete Banner fangen sonst den Klick ab
         medallion = tab.locator("#rh_rwm, #id_rh_w").first
         try:
             medallion.click(timeout=10000)
