@@ -42,6 +42,11 @@ python -m venv .venv
   Reihenfolge. Ist die Aufgabe nach dem Lauf noch offen, versucht das Tool bis zu zwei weitere Begriffe aus der Liste
   (Liedtexte zählen z. B. nur bei Liedern, zu denen Bing eine Liedtext-Box zeigt). Fehlt ein Thema, steht im Log
   „Kein Suchbegriff für Thema …“ – dann dort ergänzen.
+  Auch Kacheln, die zum Suchen nach Infos zu einem Thema auffordern („Expand your knowledge of dinosaurs“,
+  „Erweitern Sie Ihr Wissen über …“, „Erfahre mehr über …“), werden so erledigt, egal in welchem Bereich sie stehen:
+  Das Thema aus dem Text wird in `topic_queries` nachgeschlagen (Schlüssel als Teilwort, `dinosaur` passt also auch
+  zu „dinosaurs“ und „Dinosaurier“) und dort gezielt nach einem Beispiel gesucht, etwa einem bestimmten
+  Dinosaurier. Ohne Eintrag wird nach dem Thema selbst gesucht.
 - **Tägliche Suche:** Suchbegriffe aus Google Trends (DE) mit Fallback-Liste. Der Fortschritt
   (`pointsCounters.pc` auf `/earn`) wird alle 10 Suchen geprüft, bis das Limit erreicht ist.
 - **Visuelle Suche (Streak):** Lädt das Bing-Bild des Tages über das Kamera-Symbol im Suchfeld hoch; Bing heftet

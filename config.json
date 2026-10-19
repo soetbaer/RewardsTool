@@ -120,6 +120,16 @@
         "Aktienkurs Nvidia",
         "Aktienkurs SAP",
         "Aktienkurs Siemens"
+      ],
+      "dinosaur": [
+        "Tyrannosaurus Rex",
+        "Triceratops",
+        "Stegosaurus",
+        "Velociraptor",
+        "Brachiosaurus",
+        "Spinosaurus",
+        "Ankylosaurus",
+        "Diplodocus"
       ]
     }
   },

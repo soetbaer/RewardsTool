@@ -41,24 +41,70 @@ def _candidates(query) -> list[str]:
     return query[:1] + rest
 
 
-def explore_query(act: dashboard.Activity, topics: dict, tried: list[str] = ()) -> str | None:
-    """Suchbegriff für 'Auf Bing erkunden'-Aufgaben (aus offerId-Thema oder Kacheltext).
+# Kacheln, die eine Suche zu einem Thema verlangen, ohne "Suche auf Bing nach …" zu sagen:
+# "Expand your knowledge of dinosaurs", "Erweitern Sie Ihr Wissen über Dinosaurier", "Erfahre mehr über Vulkane"
+_TOPIC_RE = re.compile(
+    r"(?:(?:expand|broaden|grow)\s+your\s+knowledge\s+(?:of|about|on)"
+    r"|learn\s+(?:more\s+)?about|find\s+out\s+(?:more\s+)?about|discover\s+(?:more\s+)?about"
+    r"|(?:look\s+up|search\s+for)\s+(?:info(?:rmation)?|facts)\s+(?:about|on)"
+    r"|(?:erweitern?\s+sie|erweitere)\s+(?:ihr|dein)\s+wissen\s+(?:über|zu|zum|zur)"
+    r"|(?:erfahren\s+sie|erfahre)\s+mehr\s+(?:über|zu|zum|zur)"
+    r"|(?:infos?|informationen|wissenswertes|fakten)\s+(?:über|zu|zum|zur))"
+    r"\s+(?:the\s+|die\s+|den\s+|das\s+)?(.+)",
+    re.I)
+_QUIZ_RE = re.compile(r"\b(?:quiz|test\s+your|teste|testen\s+sie)\b", re.I)
 
+
+def topic_from_text(act: dashboard.Activity) -> str | None:
+    """Thema einer Kachel, die zum Suchen nach Infos auffordert ("… knowledge of dinosaurs" -> "dinosaurs").
+
+    None bei Quizzen ("Test your knowledge …") – die löst solve_quiz.
+    """
+    for text in (act.description, act.title):
+        if _QUIZ_RE.search(text):
+            return None
+        m = _TOPIC_RE.search(text)
+        if m:
+            return re.split(r"[.!?]|\s+(?:with|mit|on|auf)\s+bing\b", m.group(1), 1, flags=re.I)[0].strip(" ,:;")
+    return None
+
+
+def _topic_entry(topics: dict, topic: str):
+    """Eintrag aus activities.topic_queries: genauer Schlüssel, sonst Schlüssel als Teilwort ("dinosaurs" -> "dinosaur")."""
+    topic = topic.lower()
+    if topic in topics:
+        return topics[topic]
+    return next((q for keyword, q in topics.items() if keyword in topic), None)
+
+
+def is_search_task(act: dashboard.Activity) -> bool:
+    """Kachel, die erst mit einer passenden Bing-Suche zählt."""
+    return act.section == "Auf Bing erkunden" or topic_from_text(act) is not None
+
+
+def explore_query(act: dashboard.Activity, topics: dict, tried: list[str] = ()) -> str | None:
+    """Suchbegriff für Kacheln, die eine Suche verlangen ('Auf Bing erkunden', "Expand your knowledge of …").
+
+    Reihenfolge: Thema aus der offerId, Stichwort aus dem Kacheltext, Thema aus dem Kacheltext, Kacheltext selbst.
     tried: bereits erfolglos gesuchte Begriffe – dann kommt der nächste aus der Liste, None wenn keiner mehr übrig ist.
     """
     if _has_query(act.url):
         return None  # Kachel-Link führt bereits eine Suche aus
     m = re.search(r"_([a-z]+)_exploreonbing", act.offer_id.lower())
-    query = topics.get(m.group(1)) if m else None
+    query = _topic_entry(topics, m.group(1)) if m else None
     if query is None:
         text = f"{act.title} {act.description}".lower()
         query = next((q for keyword, q in topics.items() if keyword in text), None)
+    topic = topic_from_text(act)
+    if query is None and topic:
+        query = _topic_entry(topics, topic)
     if query is not None:
         return next((q for q in _candidates(query) if q not in tried), None)
     if tried:
         return None
-    log.info("  Kein Suchbegriff für Thema '%s' in config.json (activities.topic_queries) – nutze Kacheltext",
-             m.group(1) if m else act.offer_id)
+    if act.section == "Auf Bing erkunden" or topic:
+        log.info("  Kein Suchbegriff für Thema '%s' in config.json (activities.topic_queries) – nutze Kacheltext",
+                 m.group(1) if m else topic or act.offer_id)
     # "Suchen Sie auf Bing nach den besten Streaming-Plattformen" -> "den besten Streaming-Plattformen"
     m = re.search(r"(?:suchen sie|suche|search)\s+(?:auf|on)\s+bing\s+(?:nach|for)\s+(.+)", act.description, re.I)
     if m:
@@ -67,6 +113,8 @@ def explore_query(act: dashboard.Activity, topics: dict, tried: list[str] = ()) 
     m = re.search(r"bing,?\s+um\s+(.+?)\s+zu\s+(\w+)", act.description, re.I)
     if m:
         return f"{m.group(1)} {m.group(2)}"
+    if topic:
+        return topic  # "Expand your knowledge of volcanoes" -> "volcanoes"
     return act.title if act.section == "Auf Bing erkunden" else None
 
 
@@ -244,7 +292,7 @@ def run(ctx, cfg: dict) -> None:
     # 'Auf Bing erkunden' zählt nicht bei jedem Suchbegriff (z. B. Liedtexte nur bei manchen Liedern):
     # noch offene Aufgaben mit dem nächsten Begriff aus der Liste erneut versuchen
     for _ in range(EXPLORE_RETRIES):
-        retry = [a for a in still_open if a.section == "Auf Bing erkunden"
+        retry = [a for a in still_open if is_search_task(a)
                  and explore_query(a, acfg["topic_queries"], tried.get(a.offer_id, []))]
         if not retry:
             break
