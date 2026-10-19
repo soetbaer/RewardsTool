@@ -16,6 +16,7 @@ Das Tool erledigt für dich:
 | „Auf Bing erkunden“ (Suchen zu vorgegebenen Themen) | ca. 30 |
 | „Weiter verdienen“ (weitere Kacheln, Quizze) | unterschiedlich |
 | „Visuelle Suche“ (eine Bing-Suche mit einem Bild) | 5, am 7. Tag in Folge 100 |
+| Events und Extra-Aktivitäten (z. B. die Halloween-Aufgaben), auch über mehrere Tage | unterschiedlich, oft 50 und mehr |
 | Bonuspunkte unter **„Bereit zum Anfordern“** beanspruchen | sonst verfallen sie nach einem Monat |
 
 **Nicht** abgedeckt: Punkte, die es nur in der **Bing-App auf dem Handy** gibt (z. B. Nachrichten lesen).
