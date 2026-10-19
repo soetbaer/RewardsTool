@@ -242,6 +242,15 @@
     </section>
 
     <section>
+      <h3>Pause zwischen Suchen</h3>
+      <div class="muted">Damit die Suchen nicht maschinell wirken, wartet das Tool vor jeder Suche eine zufällige Zeit
+        zwischen <span id="delayMinText">5</span> Sekunden und dem hier eingestellten Höchstwert.</div>
+      <div class="row"><label for="delayMax">Höchstens</label><input type="number" id="delayMax" min="5" max="600" step="1" inputmode="numeric" style="flex:0 0 auto;width:7em">
+        <span>Sekunden</span><button id="delayBtn">Speichern</button></div>
+      <p class="msg muted" id="delayMsg"></p>
+    </section>
+
+    <section>
       <h3>Updates</h3>
       <div class="seg" id="updateSeg">
         <button data-auto="false">Manuell</button><button data-auto="true">Automatisch</button>
@@ -602,6 +611,9 @@ $('settingsBtn').onclick = async () => {
     const [st, u] = await Promise.all([call('/api/settings'), call('/api/update')]);
     applyTheme(st.theme); renderAutoUpdate(st.auto_update); renderUpdateStatus(u);
     $('hostsInput').value = (st.allowed_hosts || []).join('\n'); $('hostsMsg').textContent = '';
+    $('delayMax').min = st.search_delay_min; $('delayMax').max = st.search_delay_limit;
+    $('delayMax').value = st.search_delay_max; $('delayMinText').textContent = st.search_delay_min;
+    $('delayMsg').className = 'msg muted'; $('delayMsg').textContent = delayHint(st.search_delay_min, st.search_delay_limit);
     $('runTime').value = st.run_time || '';
     $('runTime').disabled = $('runTimeBtn').disabled = !st.run_time_editable;
     $('runTimeMsg').className = 'msg muted';
@@ -635,6 +647,19 @@ async function setDailyRun(on) {
 }
 ['dailyRunCard', 'dailyRunSettings'].forEach(id => $(id).addEventListener('change', e => setDailyRun(e.target.checked)));
 
+function delayHint(min, max) {
+  return `Erlaubt: ${min} Sekunden bis ${max / 60} Minuten (${max} Sekunden). Standard: 10 Sekunden.`;
+}
+$('delayBtn').onclick = async () => {
+  const msg = $('delayMsg'), box = $('delayMax'), value = Number(box.value);
+  if (!Number.isInteger(value) || value < Number(box.min) || value > Number(box.max)) {
+    msg.className = 'msg err'; msg.textContent = `Bitte eine ganze Zahl von ${box.min} bis ${box.max} Sekunden eingeben.`; return;
+  }
+  try {
+    const r = await call('/api/settings', {search_delay_max: value});
+    msg.className = 'msg ok'; msg.textContent = `Gespeichert – Pause zufällig zwischen ${box.min} und ${r.search_delay_max} Sekunden.`;
+  } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; }
+};
 $('runTimeBtn').onclick = async () => {
   const msg = $('runTimeMsg');
   try {

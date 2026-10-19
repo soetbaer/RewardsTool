@@ -308,7 +308,7 @@ In der Datei `config.json` (mit dem Editor öffnen):
 
 | Einstellung | Bedeutung |
 |---|---|
-| `"search": { "delay": 10 }` | Pause zwischen zwei Suchen in Sekunden (1–120) |
+| `"search": { "delay": 10 }` | Höchstwert der zufälligen Pause zwischen zwei Suchen in Sekunden (5–600). Jede Pause liegt zufällig zwischen 5 s und diesem Wert. Bequemer im Webinterface unter Einstellungen → „Pause zwischen Suchen“; dieser Wert hat dann Vorrang |
 | `"webui": { "port": 3333 }` | Port des Webinterfaces |
 | `"activities": { "topic_queries": … }` | Suchbegriffe für „Auf Bing erkunden“-Themen (Text oder Liste mehrerer Begriffe) |
 

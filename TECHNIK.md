@@ -25,7 +25,7 @@ python -m venv .venv
 | `python main.py run` | Alle Aufgaben: Aktivitäten und Suchen |
 | `python main.py run --only searches` | Nur einzelne Aufgaben (`activities`, `searches`, `visualsearch`, `claim`) |
 | `python main.py run --headless` | Ohne sichtbares Fenster – dann werden „Auf Bing erkunden“-Aufgaben nicht gutgeschrieben |
-| `python main.py run /delay=20` | Pause zwischen zwei Suchen in Sekunden (1–120, Standard 10 aus `search.delay` in `config.json`) |
+| `python main.py run /delay=20` | Höchstwert der zufälligen Pause zwischen zwei Suchen in Sekunden (5–600). Jede Pause liegt zufällig zwischen 5 s und diesem Wert. Standard: Einstellung im Webinterface, sonst `search.delay` in `config.json` (10) |
 | `python main.py diagnose` | Prüft Login und macht eine Testsuche, ob sie gezählt wird |
 | `python main.py export-session` / `import-session` | Login-Sitzung auf einen anderen Rechner übertragen |
 | `python main.py dump` | Speichert HTML, Screenshot und dekodierte Seitendaten von `/dashboard` und `/earn` in `debug/`, falls Microsoft die Seite ändert |

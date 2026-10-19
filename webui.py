@@ -663,7 +663,9 @@ def ms_cancel():
 @app.get("/api/settings")
 @api
 def get_settings():
-    return jsonify(**settings.load(), run_time=schedule.get_time(), run_time_editable=schedule.can_set())
+    return jsonify(**{**settings.load(), "search_delay_max": settings.search_delay_max(load_config(BASE / "config.json"))},
+                   search_delay_min=settings.SEARCH_DELAY_MIN, search_delay_limit=settings.SEARCH_DELAY_MAX,
+                   run_time=schedule.get_time(), run_time_editable=schedule.can_set())
 
 
 @app.post("/api/settings")
@@ -690,6 +692,13 @@ def save_settings():
                 hosts.append(host)
         changes["allowed_hosts"] = hosts
         log.info("Freigegebene Adressen für das Webinterface: %s", ", ".join(hosts) or "keine")
+    if "search_delay_max" in data:
+        value = data["search_delay_max"]
+        if not settings.valid_search_delay(value):
+            return jsonify(error=f"Die Pause muss zwischen {settings.SEARCH_DELAY_MIN} und "
+                                 f"{settings.SEARCH_DELAY_MAX} Sekunden liegen."), 400
+        changes["search_delay_max"] = value
+        log.info("Pause zwischen Suchen: zufällig %s–%s s (Webinterface)", settings.SEARCH_DELAY_MIN, value)
     return jsonify(settings.save(**changes))
 
 
