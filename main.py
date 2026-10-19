@@ -8,16 +8,18 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from rewards import activities, claim, dashboard, runstate, searches, settings, visualsearch
+from rewards import activities, claim, dashboard, quests, runstate, searches, settings, visualsearch
 from rewards.browser import open_context
 from rewards.util import BING, LOGIN_HINT, load_config, log, setup_logging
 
 BASE = Path(__file__).parent
-DELAY_MIN, DELAY_MAX = 1, 120
-# claim zuletzt: Bonuspunkte aus Suchen und Aktivitäten landen erst in "Bereit zum Anfordern"
-TASKS = {"activities": activities.run, "searches": searches.run, "visualsearch": visualsearch.run, "claim": claim.run}
+DELAY_MIN, DELAY_MAX = settings.SEARCH_DELAY_MIN, settings.SEARCH_DELAY_MAX
+# claim zuletzt: Bonuspunkte aus Suchen und Aktivitäten landen erst in "Bereit zum Anfordern".
+# quests kurz davor: wartet ggf. auf den 24-Stunden-Abstand mehrtägiger Event-Aufgaben.
+TASKS = {"activities": activities.run, "searches": searches.run, "visualsearch": visualsearch.run,
+         "quests": quests.run, "claim": claim.run}
 TASK_NAMES = {"activities": "Aktivitäten", "searches": "PC-Suche", "visualsearch": "Visuelle Suche",
-              "claim": "Punkte beanspruchen"}
+              "quests": "Events", "claim": "Punkte beanspruchen"}
 
 
 REMOTE_PORT = 9222
@@ -279,7 +281,10 @@ def cmd_dump(pw, cfg, args):
     out = BASE / "debug" / datetime.now().strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True)
     ctx = open_context(pw, cfg, BASE, headless=True)
-    for name, url in (("dashboard", dashboard.DASHBOARD_URL), ("earn", dashboard.EARN_URL)):
+    pages = [("dashboard", dashboard.DASHBOARD_URL), ("earn", dashboard.EARN_URL)]
+    # Event-Seiten (Quests) mit speichern, damit neue Aufgabentypen nachgebaut werden können
+    pages += [(f"event{i}", url) for i, url in enumerate(quests.find_event_pages(ctx, cfg["quests"])[2:], 1)]
+    for name, url in pages:
         page = dashboard.open_rewards_page(ctx, url)
         if not page:
             break
@@ -303,7 +308,8 @@ def main():
     run.add_argument("--only", help=f"Kommagetrennt: {','.join(TASKS)}")
     run.add_argument("--headless", action="store_true", help="Ohne sichtbares Fenster")
     run.add_argument("/delay", "--delay", type=delay_seconds, metavar="SEK",
-                     help=f"Pause zwischen Suchen in Sekunden ({DELAY_MIN}-{DELAY_MAX}, Standard aus config.json: 10)")
+                     help=f"Obergrenze der zufälligen Pause zwischen Suchen in Sekunden ({DELAY_MIN}-{DELAY_MAX}, "
+                          "Standard aus dem Webinterface bzw. config.json: 10)")
     sub.add_parser("dump", help="Dashboard zur Fehlersuche speichern")
     sub.add_parser("diagnose", help="Prüfen, ob Login gültig ist und Suchen gezählt werden")
     exp = sub.add_parser("export-session", help="Login-Sitzung in Datei exportieren (für den Server)")
@@ -314,10 +320,11 @@ def main():
 
     setup_logging(BASE / "logs")
     cfg = load_config(BASE / "config.json")
+    cfg["search"]["delay"] = settings.search_delay_max(cfg)
     try:
-        cfg["search"]["delay"] = delay_seconds(str(cfg["search"].get("delay", 10)))
-    except argparse.ArgumentTypeError as e:
-        parser.error(f"search.delay in config.json {e}")
+        cfg["quests"] = quests.check_config(cfg.get("quests"))
+    except ValueError as e:
+        parser.error(f"{e} (config.json)")
     handlers = {
         "login": cmd_login, "status": cmd_status, "run": cmd_run, "dump": cmd_dump, "diagnose": cmd_diagnose,
         "export-session": cmd_export_session, "import-session": cmd_import_session,

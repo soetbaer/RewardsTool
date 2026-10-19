@@ -16,6 +16,7 @@ Das Tool erledigt für dich:
 | „Auf Bing erkunden“ (Suchen zu vorgegebenen Themen) | ca. 30 |
 | „Weiter verdienen“ (weitere Kacheln, Quizze) | unterschiedlich |
 | „Visuelle Suche“ (eine Bing-Suche mit einem Bild) | 5, am 7. Tag in Folge 100 |
+| Events und Extra-Aktivitäten (z. B. die Halloween-Aufgaben), auch über mehrere Tage | unterschiedlich, oft 50 und mehr |
 | Bonuspunkte unter **„Bereit zum Anfordern“** beanspruchen | sonst verfallen sie nach einem Monat |
 
 **Nicht** abgedeckt: Punkte, die es nur in der **Bing-App auf dem Handy** gibt (z. B. Nachrichten lesen).
@@ -308,7 +309,7 @@ In der Datei `config.json` (mit dem Editor öffnen):
 
 | Einstellung | Bedeutung |
 |---|---|
-| `"search": { "delay": 10 }` | Pause zwischen zwei Suchen in Sekunden (1–120) |
+| `"search": { "delay": 10 }` | Höchstwert der zufälligen Pause zwischen zwei Suchen in Sekunden (5–600). Jede Pause liegt zufällig zwischen 5 s und diesem Wert. Bequemer im Webinterface unter Einstellungen → „Pause zwischen Suchen“; dieser Wert hat dann Vorrang |
 | `"webui": { "port": 3333 }` | Port des Webinterfaces |
 | `"activities": { "topic_queries": … }` | Suchbegriffe für „Auf Bing erkunden“-Themen (Text oder Liste mehrerer Begriffe) |
 
