@@ -23,12 +23,12 @@ python -m venv .venv
 | `python main.py login` | Öffnet den Browser. Du meldest dich dort selbst an (rewards.bing.com und bing.com). Das Passwort wird nicht gespeichert, nur die Sitzung im Ordner `profile/`. |
 | `python main.py status` | Punktestand, Suchfortschritt und offene Aktivitäten |
 | `python main.py run` | Alle Aufgaben: Aktivitäten und Suchen |
-| `python main.py run --only searches` | Nur einzelne Aufgaben (`activities`, `searches`, `visualsearch`, `claim`) |
+| `python main.py run --only searches` | Nur einzelne Aufgaben (`activities`, `searches`, `visualsearch`, `quests`, `claim`) |
 | `python main.py run --headless` | Ohne sichtbares Fenster – dann werden „Auf Bing erkunden“-Aufgaben nicht gutgeschrieben |
 | `python main.py run /delay=20` | Pause zwischen zwei Suchen in Sekunden (1–120, Standard 10 aus `search.delay` in `config.json`) |
 | `python main.py diagnose` | Prüft Login und macht eine Testsuche, ob sie gezählt wird |
 | `python main.py export-session` / `import-session` | Login-Sitzung auf einen anderen Rechner übertragen |
-| `python main.py dump` | Speichert HTML, Screenshot und dekodierte Seitendaten von `/dashboard` und `/earn` in `debug/`, falls Microsoft die Seite ändert |
+| `python main.py dump` | Speichert HTML, Screenshot und dekodierte Seitendaten von `/dashboard`, `/earn` und gefundenen Event-Seiten in `debug/`, falls Microsoft die Seite ändert |
 
 ## Was passiert
 
@@ -48,6 +48,28 @@ python -m venv .venv
   es ins Suchfeld, Enter startet die Suche. Antwortet `/images/kblob` mit einem Fehler (bei manchen Konten auch von
   Hand), wird der Streak mit Hinweis übersprungen.
   Erledigt-Status aus dem Streak `partner: visualsearch` (`isCurrentDayCompleted`).
+- **Events und Extra-Aktivitäten (Quests):** Zeitlich begrenzte Aufgabenlisten wie die Halloween-Quest
+  („0 von 6 Aufgaben“). Das Tool sucht sie auf `/dashboard`, `/earn`, auf dort verlinkten Event-Seiten
+  (`rewards.bing.com/…quest…`, `…punchcard…`, `…promotion…`) und unter `quests.urls` in `config.json`. Jede
+  Aufgabe wird am Text von Titel, Beschreibung und Knopf erkannt:
+  | Art | Erkennung (Beispiel) | Was das Tool tut |
+  |---|---|---|
+  | Quest aktivieren | „Quest aktivieren“, „beginnt hier“ | Knopf klicken; danach wird die Seite neu gelesen, weil das die übrigen Aufgaben freischaltet |
+  | Mehrere Tage | „Suche an 5 von 10 Tagen … mindestens 24 Stunden auseinander (0/5 Tage abgeschlossen)“ | einmal pro Tag suchen; Zeitpunkte in `data/quests.json`, Abstand mindestens 24 Stunden und 5 Minuten |
+  | Suche | „Kostüme suchen“, „Finde Halloween-Dekoration“ | Knopf klicken, dann zum Thema suchen |
+  | Link öffnen | „herunterladen“, „Probieren Sie es aus“, „entdecken“ | Knopf klicken, Seite kurz ansehen |
+  | Quiz | „Quiz“, „Umfrage“ | wie bei den täglichen Aktionen |
+  | unbekannt | alles andere | wird übersprungen und mit Titel, Beschreibung und Knopf geloggt |
+
+  Gesperrte Aufgaben (Schloss, grauer Knopf) und erledigte werden übersprungen. Eine einmalige Aufgabe, die nach dem
+  Erledigen weiter offen bleibt, versucht das Tool höchstens dreimal. Fehlen nach dem Lauf noch Aufgaben oder
+  wurden keine erkannt, liegen Screenshot und HTML der Event-Seite in `debug/quests/`.
+  **Suchbegriffe** kommen aus `quests.topic_queries` (Stichwort im Aufgabentext → Begriff oder Liste, `{event}` =
+  Name des Events, z. B. „Halloween“; `*` = allgemeine Begriffe), sonst aus dem Knopf („Finde Halloween-Dekoration“
+  → „Halloween-Dekoration“) oder der Beschreibung („Suchen Sie nach Kostümideen …“ → „Halloween Kostümideen“).
+  Ist der nächste Tag einer mehrtägigen Aufgabe beim Lauf erst in Kürze fällig (höchstens `quests.max_wait_minutes`,
+  Standard 45, erlaubt 0–180), wartet das Tool am Ende der Events darauf, sonst kommt sie beim nächsten Lauf dran.
+  `quests.enabled: false` schaltet die Events ab; `quests.delay_seconds` ist die Pause zwischen zwei Aufgaben.
 - **Bereit zum Anfordern:** Bonuspunkte (Suchbonus, Monatsbonus, Streaks) müssen auf dem Dashboard beansprucht
   werden, sonst verfallen sie nach einem Monat. Das Tool klickt die Kachel und im Seitenfenster „Punkte
   beanspruchen“ – als letzter Schritt eines Laufs. Screenshots dazu in `debug/claim/`.

@@ -123,6 +123,51 @@
       ]
     }
   },
+  "quests": {
+    "enabled": true,
+    "max_wait_minutes": 45,
+    "delay_seconds": [
+      5,
+      12
+    ],
+    "urls": [],
+    "topic_queries": {
+      "kostüm": [
+        "{event} Kostüm Ideen",
+        "{event} Kostüme selber machen",
+        "{event} Kostüm Trends",
+        "{event} Kostüme für Paare"
+      ],
+      "deko": [
+        "{event} Deko Ideen",
+        "{event} Deko basteln",
+        "{event} Dekoration Wohnung",
+        "{event} Deko für draußen"
+      ],
+      "rezept": [
+        "{event} Rezepte",
+        "{event} Snacks für Partys",
+        "{event} Kuchen backen"
+      ],
+      "film": [
+        "{event} Filme",
+        "beste {event} Filme"
+      ],
+      "geschenk": [
+        "{event} Geschenkideen",
+        "{event} Geschenke für Kinder"
+      ],
+      "*": [
+        "{event} Ideen",
+        "{event} Bräuche",
+        "{event} Geschichte",
+        "{event} Rezepte",
+        "{event} Filme",
+        "{event} Basteln mit Kindern",
+        "{event} Party Ideen"
+      ]
+    }
+  },
   "webui": {
     "host": "auto",
     "port": 3333
