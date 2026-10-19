@@ -3,7 +3,7 @@ import random
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
 
-from . import dashboard, runstate
+from . import dashboard, runstate, settings
 from .util import BING, log, reject_consent, urlopen
 
 FALLBACK_TERMS = [
@@ -108,8 +108,8 @@ def run(ctx, cfg: dict) -> None:
         needed = scfg["fallback_count"]
         log.info("Suchfortschritt unbekannt, führe %s Suchen aus", needed)
 
-    delay = scfg["delay"]
-    log.info("Pause zwischen Suchen: %s s", delay)
+    delay = (settings.SEARCH_DELAY_MIN, max(settings.SEARCH_DELAY_MIN, scfg["delay"]))
+    log.info("Pause zwischen Suchen: zufällig %s–%s s", *delay)
     page = ctx.new_page()
     terms = build_terms(needed, scfg["trends_geo"])
     checked = {0: progress}  # Suche Nr. -> Fortschritt danach
@@ -124,7 +124,7 @@ def run(ctx, cfg: dict) -> None:
                     log.warning("Suche %s/%s: keine Ergebnisseite (%s)", i, len(terms), page.url)
             except Exception as e:
                 log.warning("Suche '%s' fehlgeschlagen: %s", term, e)
-            runstate.sleep(delay)
+            runstate.sleep(random.uniform(*delay))
 
             # Regelmäßig prüfen, ob das Tageslimit erreicht ist und ob überhaupt gezählt wird
             if i % CHECK_EVERY == 0:
