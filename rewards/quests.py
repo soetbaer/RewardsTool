@@ -295,8 +295,8 @@ def _apply_payload(task: QuestTask, payload: str) -> None:
     if i < 0:
         return
     raw = dashboard._enclosing_object(payload, i)
-    if not raw:
-        return
+    if not raw or dashboard._clean(str(raw.get("title") or "")) != task.title:
+        return  # nur das Datenobjekt der Aufgabe selbst, nicht irgendein Seitenelement mit dem Text
     if "isCompleted" in raw:
         task.completed = dashboard._flag(raw["isCompleted"])
     if "isLocked" in raw:
@@ -352,7 +352,12 @@ def find_event_pages(ctx, cfg: dict) -> list[str]:
         finally:
             page.close()
     urls += cfg.get("urls") or []
-    return list(dict.fromkeys(u.split("#")[0] for u in urls))
+    # Dieselbe Event-Seite wird teils mit Tracking-Parametern verlinkt (?form=…&OCID=…)
+    out = {}
+    for u in urls:
+        p = urlparse(u.split("#")[0])
+        out.setdefault(p.path.rstrip("/") if "/quest/" in p.path else u.split("#")[0], u.split("#")[0])
+    return list(out.values())
 
 
 # ---------- Aufgaben erledigen ----------
@@ -381,8 +386,10 @@ def _do(ctx, page, quest: Quest, task: QuestTask, kind: str, topics: dict, tried
     """Führt eine Aufgabe aus. False, wenn nichts passiert ist."""
     tab, own = _open_cta(ctx, page, task)
     if tab is None:
+        log.info("  '%s' geklickt – kein neuer Tab", task.cta)
         page.wait_for_timeout(random.randint(2000, 4000))
         return kind == ACTIVATE  # Aktivieren klappt auch ohne neuen Tab
+    log.info("  '%s' geklickt – geöffnet: %s", task.cta, tab.url[:100])
     try:
         reject_consent(tab)
         if kind == QUIZ:
@@ -426,11 +433,16 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
     try:
         attempted: set[tuple[str, str]] = set()
         mine: set[str] = set()  # Events, die auf dieser Seite bearbeitet werden (nicht schon auf einer anderen)
+        activated = False
         for rnd in range(ROUNDS):
             if rnd:
                 _reload(page)  # Aktivieren schaltet die übrigen Aufgaben frei
             quests = [q for q in read_quests(page, url)
                       if (q.key not in seen if rnd == 0 else q.key in mine)]
+            if rnd == 0:
+                # Auf Dashboard und /earn stehen Event-Kacheln nur mit Statuszeile; die Aufgaben selbst stehen auf
+                # der verlinkten Event-Seite
+                quests = [q for q in quests if q.tasks or url not in (dashboard.DASHBOARD_URL, dashboard.EARN_URL)]
             if not quests:
                 break
             todo = []
@@ -455,7 +467,12 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
                         continue
                     todo.append((quest, task, kind))
             if not todo:
+                if rnd and activated:
+                    log.warning("  Nach dem Aktivieren sind die übrigen Aufgaben weiter gesperrt – Screenshot und "
+                                "HTML: %s", DEBUG_DIR)
+                    _shot(page, "nach_aktivieren")
                 break
+            activated = any(kind == ACTIVATE for _, _, kind in todo)
             for quest, task, kind in todo:
                 runstate.check_cancel()
                 attempted.add((quest.key, _task_key(task)))
@@ -508,7 +525,7 @@ def _run_task(ctx, page, quest, task, kind, qcfg) -> bool:
     try:
         ok = _do(ctx, page, quest, task, kind, qcfg["topic_queries"], [])
     except Exception as e:
-        log.warning("  Aufgabe fehlgeschlagen: %s", e)
+        log.warning("  Aufgabe fehlgeschlagen: %s", e, exc_info=True)
         return False
     pause(qcfg["delay_seconds"])
     return ok
@@ -550,7 +567,7 @@ def run(ctx, cfg: dict) -> None:
         try:
             _work_page(ctx, url, qcfg, track, deferred, seen)
         except Exception as e:
-            log.warning("Event-Seite %s fehlgeschlagen: %s", url, e)
+            log.warning("Event-Seite %s fehlgeschlagen: %s", url, e, exc_info=True)
     if not seen:
         log.info("Keine Events gefunden. Steht eins auf der Rewards-Seite, die Adresse der Event-Seite in "
                  "config.json unter quests.urls eintragen.")
