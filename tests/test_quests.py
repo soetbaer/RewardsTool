@@ -82,6 +82,19 @@ class Multiday(unittest.TestCase):
         self.assertEqual(quests.multiday_wait(entry, now), 0)
 
 
+class Payload(unittest.TestCase):
+    def test_title_outside_object(self):
+        # Titel steht ohne umschließendes Objekt im Payload: früher "argument of type 'int' is not ... iterable"
+        task = QuestTask("Spotify", "", "Los")
+        quests._apply_payload(task, '0:["$","p",null,"Spotify"]')
+        self.assertFalse(task.completed)
+
+    def test_task_object(self):
+        task = QuestTask("Spotify", "", "Los", locked=True)
+        quests._apply_payload(task, '1:{"offerId":"x","title":"Spotify","isLocked":false,"isCompleted":true}')
+        self.assertEqual((task.locked, task.completed), (False, True))
+
+
 class Config(unittest.TestCase):
     def test_defaults(self):
         cfg = quests.check_config(None)

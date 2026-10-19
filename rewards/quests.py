@@ -216,7 +216,9 @@ _READ_JS = r"""
   const DONE = /abgeschlossen|erledigt|completed|done|checkmark|häkchen/i;
   const LOCK = /gesperrt|locked|\block\b/i;
   const shown = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const ctas = box => [...box.querySelectorAll(CTA)].filter(e => !e.parentElement.closest(CTA) && norm(e.innerText).length >= 3 && shown(e));
+  const CHROME = 'nav, header, footer, [role="navigation"], [role="banner"], [role="contentinfo"]';  // Seitenkopf/-menü
+  const ctas = box => [...box.querySelectorAll(CTA)].filter(e => !e.parentElement.closest(CTA) && !e.closest(CHROME)
+                                                             && norm(e.innerText).length >= 3 && shown(e));
   document.querySelectorAll('[data-rt-quest]').forEach(e => e.removeAttribute('data-rt-quest'));
 
   const statuses = [...document.querySelectorAll('body *')].filter(e =>
@@ -231,6 +233,8 @@ _READ_JS = r"""
       if (ctas(box).length >= +total) break;
       const up = box.parentElement;
       if (statuses.some(s => s !== status && up.contains(s))) break;
+      // Erledigte Aufgaben haben oft keinen Knopf mehr: nicht bis in Seitenkopf und Menü hochlaufen
+      if (up === document.body || [...up.querySelectorAll(CHROME)].some(c => !c.contains(status))) break;
       box = up;
     }
     const tasks = [];
@@ -295,8 +299,8 @@ def _apply_payload(task: QuestTask, payload: str) -> None:
     if i < 0:
         return
     raw = dashboard._enclosing_object(payload, i)
-    if not raw:
-        return
+    if not raw or dashboard._clean(str(raw.get("title") or "")) != task.title:
+        return  # nur das Datenobjekt der Aufgabe selbst, nicht irgendein Seitenelement mit dem Text
     if "isCompleted" in raw:
         task.completed = dashboard._flag(raw["isCompleted"])
     if "isLocked" in raw:
@@ -317,6 +321,8 @@ def read_quests(page, url: str) -> list[Quest]:
     for q in raw:
         tasks = []
         for t in q["tasks"]:
+            if not t["title"]:
+                continue  # Knopf ohne Aufgabentext, z. B. Menüpunkt der Seite
             task = QuestTask(t["title"], t["description"], t["cta"], t["href"], t["locked"], t["completed"], t["mark"])
             if payload:
                 _apply_payload(task, payload)
@@ -352,7 +358,12 @@ def find_event_pages(ctx, cfg: dict) -> list[str]:
         finally:
             page.close()
     urls += cfg.get("urls") or []
-    return list(dict.fromkeys(u.split("#")[0] for u in urls))
+    # Dieselbe Event-Seite wird teils mit Tracking-Parametern verlinkt (?form=…&OCID=…)
+    out = {}
+    for u in urls:
+        p = urlparse(u.split("#")[0])
+        out.setdefault(p.path.rstrip("/") if "/quest/" in p.path else u.split("#")[0], u.split("#")[0])
+    return list(out.values())
 
 
 # ---------- Aufgaben erledigen ----------
@@ -381,9 +392,15 @@ def _do(ctx, page, quest: Quest, task: QuestTask, kind: str, topics: dict, tried
     """Führt eine Aufgabe aus. False, wenn nichts passiert ist."""
     tab, own = _open_cta(ctx, page, task)
     if tab is None:
+        log.info("  '%s' geklickt – kein neuer Tab", task.cta)
         page.wait_for_timeout(random.randint(2000, 4000))
         return kind == ACTIVATE  # Aktivieren klappt auch ohne neuen Tab
+    log.info("  '%s' geklickt – geöffnet: %s", task.cta, tab.url[:100])
     try:
+        try:
+            tab.wait_for_load_state("load", timeout=20000)  # Aktivieren meldet sich erst beim Laden der Seite
+        except PwTimeout:
+            pass
         reject_consent(tab)
         if kind == QUIZ:
             solve_quiz(tab)
@@ -419,6 +436,29 @@ def _reload(page) -> None:
     dashboard.expand_sections(page)
 
 
+UNLOCK_WAITS = (0, 4, 8, 15)  # Sekunden: nach dem Aktivieren erst die Seite selbst prüfen, dann neu laden
+
+
+def _has_unlocked(page, url: str, keys: set[str], attempted: set) -> bool:
+    """Gibt es eine offene, freigeschaltete Aufgabe, die in diesem Lauf noch nicht versucht wurde?"""
+    return any(not t.locked and not t.completed and (q.key, _task_key(t)) not in attempted
+               for q in read_quests(page, url) if q.key in keys for t in q.tasks)
+
+
+def _refresh(page, url: str, keys: set[str], activated: bool, attempted: set) -> None:
+    """Seite nach einer Runde neu einlesen. Nach dem Aktivieren schaltet Rewards die übrigen Knöpfe teils direkt
+    auf der Seite frei, teils erst nach einigen Sekunden auf dem Server – darum mehrmals mit Pausen prüfen."""
+    if not activated:
+        _reload(page)
+        return
+    for wait in UNLOCK_WAITS:
+        if wait:
+            page.wait_for_timeout(wait * 1000)
+            _reload(page)
+        if _has_unlocked(page, url, keys, attempted):
+            return
+
+
 def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set) -> None:
     page = dashboard.open_rewards_page(ctx, url)
     if not page:
@@ -426,11 +466,16 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
     try:
         attempted: set[tuple[str, str]] = set()
         mine: set[str] = set()  # Events, die auf dieser Seite bearbeitet werden (nicht schon auf einer anderen)
+        activated = False
         for rnd in range(ROUNDS):
             if rnd:
-                _reload(page)  # Aktivieren schaltet die übrigen Aufgaben frei
+                _refresh(page, url, mine, activated, attempted)
             quests = [q for q in read_quests(page, url)
                       if (q.key not in seen if rnd == 0 else q.key in mine)]
+            if rnd == 0:
+                # Auf Dashboard und /earn stehen Event-Kacheln nur mit Statuszeile; die Aufgaben selbst stehen auf
+                # der verlinkten Event-Seite
+                quests = [q for q in quests if q.tasks or url not in (dashboard.DASHBOARD_URL, dashboard.EARN_URL)]
             if not quests:
                 break
             todo = []
@@ -440,9 +485,11 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
                     mine.add(quest.key)
                     log.info("Event '%s': %s von %s Aufgaben erledigt (%s)", quest.name or "?", quest.done,
                              quest.total, url)
-                    if not quest.tasks:
+                    if not quest.tasks and quest.done < quest.total:
                         log.warning("  Keine Aufgaben erkannt – Screenshot und HTML: %s", DEBUG_DIR)
                         _shot(page, quest.key)
+                if quest.total and quest.done >= quest.total:
+                    continue  # alles erledigt
                 for task in quest.tasks:
                     key = (quest.key, _task_key(task))
                     if key in attempted or task.completed:
@@ -455,7 +502,12 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
                         continue
                     todo.append((quest, task, kind))
             if not todo:
+                if rnd and activated:
+                    log.warning("  Nach dem Aktivieren sind die übrigen Aufgaben weiter gesperrt – Screenshot und "
+                                "HTML: %s", DEBUG_DIR)
+                    _shot(page, "nach_aktivieren")
                 break
+            activated = any(kind == ACTIVATE for _, _, kind in todo)
             for quest, task, kind in todo:
                 runstate.check_cancel()
                 attempted.add((quest.key, _task_key(task)))
@@ -508,7 +560,7 @@ def _run_task(ctx, page, quest, task, kind, qcfg) -> bool:
     try:
         ok = _do(ctx, page, quest, task, kind, qcfg["topic_queries"], [])
     except Exception as e:
-        log.warning("  Aufgabe fehlgeschlagen: %s", e)
+        log.warning("  Aufgabe fehlgeschlagen: %s", e, exc_info=True)
         return False
     pause(qcfg["delay_seconds"])
     return ok
@@ -550,7 +602,7 @@ def run(ctx, cfg: dict) -> None:
         try:
             _work_page(ctx, url, qcfg, track, deferred, seen)
         except Exception as e:
-            log.warning("Event-Seite %s fehlgeschlagen: %s", url, e)
+            log.warning("Event-Seite %s fehlgeschlagen: %s", url, e, exc_info=True)
     if not seen:
         log.info("Keine Events gefunden. Steht eins auf der Rewards-Seite, die Adresse der Event-Seite in "
                  "config.json unter quests.urls eintragen.")

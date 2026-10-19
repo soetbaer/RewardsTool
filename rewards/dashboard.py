@@ -90,9 +90,10 @@ def _enclosing_object(payload: str, pos: int) -> dict | None:
             depth -= 1
         j -= 1
     try:
-        return _decoder.raw_decode(payload, j)[0]
+        obj = _decoder.raw_decode(payload, j)[0]
     except ValueError:
         return None
+    return obj if isinstance(obj, dict) else None  # ohne umschließendes {…} liest raw_decode z. B. eine Zahl
 
 
 def _flag(value) -> bool:
