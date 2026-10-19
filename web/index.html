@@ -286,7 +286,7 @@
 <!-- Log-Ansicht -->
 <div id="logModal" class="modal hidden">
   <div class="card">
-    <div class="row"><strong style="flex:1" id="logTitle"></strong><button onclick="hide('logModal')">Schließen</button></div>
+    <div class="row"><strong style="flex:1" id="logTitle"></strong><button id="logCopyBtn" title="Log in die Zwischenablage kopieren">Kopieren</button><button onclick="hide('logModal')">Schließen</button></div>
     <pre id="logText" style="max-height:75vh"></pre>
   </div>
 </div>
@@ -465,6 +465,25 @@ async function openLog(name) {
   $('logText').textContent = await (await fetch('/api/log/' + encodeURIComponent(name))).text();
   show('logModal');
 }
+// Zwischenablage: navigator.clipboard gibt es nur über HTTPS oder localhost – im Heimnetz (HTTP) per execCommand
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand('copy');
+  ta.remove();
+  if (!ok) throw new Error('Kopieren nicht möglich');
+}
+$('logCopyBtn').onclick = async () => {
+  try { await copyText($('logText').textContent); toast('Log kopiert'); } catch (e) { toast(e.message); }
+};
 $('runBtn').onclick = async () => {
   try { await call('/api/run', {}); toast('Lauf gestartet'); setTimeout(refreshState, 1500); } catch (e) { toast(e.message); }
 };
