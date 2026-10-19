@@ -216,7 +216,9 @@ _READ_JS = r"""
   const DONE = /abgeschlossen|erledigt|completed|done|checkmark|häkchen/i;
   const LOCK = /gesperrt|locked|\block\b/i;
   const shown = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const ctas = box => [...box.querySelectorAll(CTA)].filter(e => !e.parentElement.closest(CTA) && norm(e.innerText).length >= 3 && shown(e));
+  const CHROME = 'nav, header, footer, [role="navigation"], [role="banner"], [role="contentinfo"]';  // Seitenkopf/-menü
+  const ctas = box => [...box.querySelectorAll(CTA)].filter(e => !e.parentElement.closest(CTA) && !e.closest(CHROME)
+                                                             && norm(e.innerText).length >= 3 && shown(e));
   document.querySelectorAll('[data-rt-quest]').forEach(e => e.removeAttribute('data-rt-quest'));
 
   const statuses = [...document.querySelectorAll('body *')].filter(e =>
@@ -231,6 +233,8 @@ _READ_JS = r"""
       if (ctas(box).length >= +total) break;
       const up = box.parentElement;
       if (statuses.some(s => s !== status && up.contains(s))) break;
+      // Erledigte Aufgaben haben oft keinen Knopf mehr: nicht bis in Seitenkopf und Menü hochlaufen
+      if (up === document.body || [...up.querySelectorAll(CHROME)].some(c => !c.contains(status))) break;
       box = up;
     }
     const tasks = [];
@@ -317,6 +321,8 @@ def read_quests(page, url: str) -> list[Quest]:
     for q in raw:
         tasks = []
         for t in q["tasks"]:
+            if not t["title"]:
+                continue  # Knopf ohne Aufgabentext, z. B. Menüpunkt der Seite
             task = QuestTask(t["title"], t["description"], t["cta"], t["href"], t["locked"], t["completed"], t["mark"])
             if payload:
                 _apply_payload(task, payload)
@@ -479,9 +485,11 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
                     mine.add(quest.key)
                     log.info("Event '%s': %s von %s Aufgaben erledigt (%s)", quest.name or "?", quest.done,
                              quest.total, url)
-                    if not quest.tasks:
+                    if not quest.tasks and quest.done < quest.total:
                         log.warning("  Keine Aufgaben erkannt – Screenshot und HTML: %s", DEBUG_DIR)
                         _shot(page, quest.key)
+                if quest.total and quest.done >= quest.total:
+                    continue  # alles erledigt
                 for task in quest.tasks:
                     key = (quest.key, _task_key(task))
                     if key in attempted or task.completed:
