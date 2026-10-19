@@ -391,6 +391,10 @@ def _do(ctx, page, quest: Quest, task: QuestTask, kind: str, topics: dict, tried
         return kind == ACTIVATE  # Aktivieren klappt auch ohne neuen Tab
     log.info("  '%s' geklickt – geöffnet: %s", task.cta, tab.url[:100])
     try:
+        try:
+            tab.wait_for_load_state("load", timeout=20000)  # Aktivieren meldet sich erst beim Laden der Seite
+        except PwTimeout:
+            pass
         reject_consent(tab)
         if kind == QUIZ:
             solve_quiz(tab)
@@ -426,6 +430,29 @@ def _reload(page) -> None:
     dashboard.expand_sections(page)
 
 
+UNLOCK_WAITS = (0, 4, 8, 15)  # Sekunden: nach dem Aktivieren erst die Seite selbst prüfen, dann neu laden
+
+
+def _has_unlocked(page, url: str, keys: set[str], attempted: set) -> bool:
+    """Gibt es eine offene, freigeschaltete Aufgabe, die in diesem Lauf noch nicht versucht wurde?"""
+    return any(not t.locked and not t.completed and (q.key, _task_key(t)) not in attempted
+               for q in read_quests(page, url) if q.key in keys for t in q.tasks)
+
+
+def _refresh(page, url: str, keys: set[str], activated: bool, attempted: set) -> None:
+    """Seite nach einer Runde neu einlesen. Nach dem Aktivieren schaltet Rewards die übrigen Knöpfe teils direkt
+    auf der Seite frei, teils erst nach einigen Sekunden auf dem Server – darum mehrmals mit Pausen prüfen."""
+    if not activated:
+        _reload(page)
+        return
+    for wait in UNLOCK_WAITS:
+        if wait:
+            page.wait_for_timeout(wait * 1000)
+            _reload(page)
+        if _has_unlocked(page, url, keys, attempted):
+            return
+
+
 def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set) -> None:
     page = dashboard.open_rewards_page(ctx, url)
     if not page:
@@ -436,7 +463,7 @@ def _work_page(ctx, url: str, qcfg: dict, track: dict, deferred: list, seen: set
         activated = False
         for rnd in range(ROUNDS):
             if rnd:
-                _reload(page)  # Aktivieren schaltet die übrigen Aufgaben frei
+                _refresh(page, url, mine, activated, attempted)
             quests = [q for q in read_quests(page, url)
                       if (q.key not in seen if rnd == 0 else q.key in mine)]
             if rnd == 0:
