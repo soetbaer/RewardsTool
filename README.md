@@ -187,7 +187,7 @@ Das Passwort für das Webinterface legst du bei der Einrichtung fest (`Setup.bat
 geht das nur am Rechner selbst – so kann dir niemand im Heimnetz zuvorkommen.
 
 **Oben:** Punktestand (mit Punkten, die bereit zum Anfordern sind), Fortschritt der PC-Suche, dein in Rewards
-gesetztes **Ziel** mit Fortschritt, letzter Lauf, nächster geplanter Lauf.
+gesetztes **Ziel** mit Fortschritt und Prognose („Noch X Tage bis zum Ziel“ bzw. bis x2, x3 …), letzter Lauf, nächster geplanter Lauf.
 Rechts oben zeigt ein Schild, ob das Tool **„Bereit“** ist oder gerade arbeitet.
 
 **Knöpfe:**

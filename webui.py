@@ -23,7 +23,7 @@ from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, request, send_from_directory
 
-from rewards import dashboard, runstate, schedule, settings, updater
+from rewards import dashboard, forecast, runstate, schedule, settings, updater
 from rewards.browser import open_context
 from rewards.util import BING, load_config, log, setup_logging
 from rewards.version import VERSION
@@ -434,9 +434,11 @@ def logout():
 def get_state():
     current = runstate.read_json(runstate.CURRENT_RUN_FILE)
     running = bool(current) and runstate.ProfileLock().is_busy() and not (ms_session and ms_session.is_alive())
+    status = runstate.read_json(runstate.STATUS_FILE)
     return jsonify(
         busy=busy_reason(),
-        status=runstate.read_json(runstate.STATUS_FILE),
+        status=status,
+        goal_forecast=forecast.forecast_for_status(runstate.HISTORY_FILE, status),
         run={**current, "log_text": tail(runstate.RUN_LOGS / current["log"]),
              "cancelling": runstate.cancel_requested()} if running else None,
         history=runstate.history(30),
