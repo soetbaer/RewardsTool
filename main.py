@@ -8,7 +8,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from rewards import activities, claim, dashboard, quests, runstate, searches, settings, visualsearch
+from rewards import activities, claim, dashboard, forecast, quests, runstate, searches, settings, visualsearch
 from rewards.browser import open_context
 from rewards.util import BING, LOGIN_HINT, load_config, log, setup_logging
 
@@ -98,6 +98,9 @@ def cmd_status(pw, cfg, args):
     if state.goal:
         g = state.goal
         print(f"Ziel:        {g.title} – {g.points}/{g.price} ({'erreicht' if not g.remaining else f'noch {g.remaining}'})")
+        fc = forecast.forecast_for_status(runstate.HISTORY_FILE, runstate.read_json(runstate.STATUS_FILE))
+        if fc:
+            print(f"             {fc['text']}")
     if state.search:
         print(f"PC-Suche:    {state.search[0]}/{state.search[1]}")
     for name, acts in (("Tägliche Aktionen", state.daily_set), ("Auf Bing erkunden", state.explore),

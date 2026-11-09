@@ -183,7 +183,8 @@
         <div class="goal"><img id="goalImg" alt=""><div style="min-width:0">
           <a id="goalTitle" class="goal-title" target="_blank" rel="noopener"></a></div></div>
         <div class="bar"><div id="goalBar" style="width:0"></div></div>
-        <div class="muted" id="goalText"></div></div>
+        <div class="muted" id="goalText"></div>
+        <div class="muted" id="goalForecast"></div></div>
       <div class="card"><h2>Letzter Lauf</h2><div id="lastRun" class="muted">–</div></div>
       <div class="card"><div class="card-head"><h2>Täglicher Lauf</h2><label class="switch" title="Täglichen Lauf an- oder ausschalten"><input type="checkbox" id="dailyRunCard" role="switch"><span class="track"><span class="knob"></span></span><span class="state"></span></label></div>
         <div id="nextRun" class="muted">–</div></div>
@@ -416,6 +417,7 @@ async function refreshState() {
     $('goalText').textContent = g.remaining
       ? `${fmtNum(g.points)} / ${fmtNum(g.price)} – noch ${fmtNum(g.remaining)} Punkte`
       : `${fmtNum(g.price)} Punkte – erreicht, kann eingelöst werden`;
+    $('goalForecast').textContent = s.goal_forecast ? s.goal_forecast.text : '';
   }
   renderDailyRun(s.daily_run !== false, s.next_timer);
 

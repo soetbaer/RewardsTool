@@ -79,6 +79,10 @@ python -m venv .venv
   werden, sonst verfallen sie nach einem Monat. Das Tool klickt die Kachel und im Seitenfenster „Punkte
   beanspruchen“ – als letzter Schritt eines Laufs. Screenshots dazu in `debug/claim/`.
 - **Ziel:** Ein in Rewards gesetztes Einlöse-Ziel zeigen `status` und das Webinterface mit Fortschritt an.
+  Dazu kommt eine Prognose „Noch X Tage bis zum Ziel“ (`rewards/forecast.py`): Tagesschnitt der verdienten Punkte
+  aus dem Laufverlauf (Punktestand vor/nach jedem Lauf), über die letzten höchstens 30 Tage bzw. den ganzen
+  kürzeren Verlauf; Rückgänge durch Einlösen zählen nicht, Tage werden aufgerundet. Ist das Ziel erreicht, gilt
+  die Prognose dem nächsten Vielfachen des Preises (x2, x3, …). Ohne Verlauf oder bei Schnitt 0 erscheint nur ein Hinweis.
 
 News-Punkte gibt es nur für das Lesen in der Bing-App auf dem Handy; das Tool deckt sie nicht ab.
 
