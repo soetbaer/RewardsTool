@@ -236,7 +236,7 @@ Im Fuß der Seite steht die installierte Version.
 | Update-Prüfung meldet **„CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate“** | Python konnte das HTTPS-Zertifikat von GitHub nicht prüfen (fehlendes Stammzertifikat oder Virenscanner/Firmen-Proxy mit eigenem Zertifikat). Ab Version 1.1.6 behoben – dieses Update einmal **von Hand** installieren (siehe „Update auf eine neue Version“). |
 | Webinterface meldet **„nicht freigegeben“** (Aufruf über eine eigene Domain) | Webinterface einmal über die IP-Adresse öffnen (z. B. `http://192.168.178.20:3333`), dann unter **Einstellungen → Zugriff über eigene Adressen** den Namen eintragen. |
 | **„Zu viele Fehlversuche“** beim Anmelden am Webinterface | 15 Minuten warten. Passwort vergessen? Siehe „Webinterface-Passwort vergessen“ weiter unten. |
-| Webinterface öffnet sich nicht (Windows) | Doppelklick auf `windows\Webinterface-starten.bat`. |
+| Webinterface öffnet sich nicht (Windows) | Doppelklick auf `windows\Webinterface-starten.bat`. War es abgestürzt, steht der Grund in `logs\rewards.log` bzw. `logs\webui-crash.log`. |
 | **Webinterface-Passwort vergessen** | **Windows:** `Setup.bat` erneut starten und bei „Passwort … ändern?“ **j** eingeben. **Server:** `~/RewardsTool/.venv/bin/python ~/RewardsTool/webui.py set-password`, danach `sudo systemctl restart rewardstool-web`. |
 | Webinterface **nicht erreichbar** (Server) | Richtige IP-Adresse? Läuft der Dienst? Auf dem Server: `sudo systemctl restart rewardstool-web` |
 | Ein Lauf bringt **+0 Punkte** | Alles für heute ist schon erledigt – das ist normal. |

@@ -86,7 +86,11 @@ python -m venv .venv
 
 News-Punkte gibt es nur für das Lesen in der Bing-App auf dem Handy; das Tool deckt sie nicht ab.
 
-Logs: `logs/rewards.log`
+Logs: `logs/rewards.log`. Unbehandelte Fehler (auch in Threads) landen dort mit Traceback, das Webinterface vermerkt
+außerdem Start und normales Ende („webui beendet“). Unter Windows laufen Webinterface und Läufe mit `pythonw.exe`
+ohne Konsole – Ausgaben auf stdout/stderr und harte Abstürze (faulthandler) landen deshalb in
+`logs/webui-crash.log` bzw. `logs/main-crash.log`. Fehlt nach dem letzten Eintrag „webui beendet“, wurde der
+Prozess von außen beendet (Task-Manager, Abmelden, Virenscanner).
 
 ## Webinterface
 
