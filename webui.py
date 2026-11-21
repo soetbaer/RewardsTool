@@ -25,7 +25,7 @@ from flask import Flask, Response, abort, jsonify, request, send_from_directory
 
 from rewards import dashboard, forecast, runstate, schedule, settings, updater
 from rewards.browser import open_context
-from rewards.util import BING, load_config, log, setup_logging
+from rewards.util import BING, capture_crashes, load_config, log, setup_logging
 from rewards.version import VERSION
 
 BASE = Path(__file__).resolve().parent
@@ -856,6 +856,7 @@ def listen_host(value) -> str:
 
 def main():
     setup_logging(BASE / "logs")
+    capture_crashes(BASE / "logs", "webui", log_exit=True)
     web = cfg.get("webui", {})
     host, port = listen_host(web.get("host")), int(web.get("port", 3333))
     if os.environ.pop("REWARDS_RESTART", None):
@@ -871,9 +872,17 @@ def main():
     log.info("RewardsTool %s – Webinterface läuft auf http://%s:%s", VERSION, host, port)
     try:
         from waitress import serve
-        serve(app, host=host, port=port, threads=8)
     except ImportError:
-        app.run(host=host, port=port, threaded=True)
+        serve = None
+    try:
+        if serve:
+            serve(app, host=host, port=port, threads=8)
+        else:
+            app.run(host=host, port=port, threaded=True)
+    except OSError as e:
+        # z. B. Port belegt (zweiter Start, anderes Programm auf dem Port) – sonst endet pythonw.exe stumm
+        log.error("Webinterface konnte nicht auf %s:%s starten: %s", host, port, e)
+        raise
 
 
 def cli_set_password() -> int:

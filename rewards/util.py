@@ -1,9 +1,15 @@
+import atexit
+import faulthandler
 import functools
 import json
 import logging
+import os
 import random
 import ssl
+import sys
+import threading
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 from . import runstate
@@ -38,13 +44,61 @@ def urlopen(url, timeout: float):
 def setup_logging(log_dir: Path) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     fmt = logging.Formatter("%(asctime)s %(levelname)-7s %(message)s", "%H:%M:%S")
-    console = logging.StreamHandler()
-    console.setFormatter(fmt)
     file = logging.FileHandler(log_dir / "rewards.log", encoding="utf-8")
     file.setFormatter(fmt)
     log.setLevel(logging.INFO)
-    log.addHandler(console)
+    if sys.stderr is not None:  # pythonw.exe (Windows ohne Fenster) hat keine Konsole
+        console = logging.StreamHandler()
+        console.setFormatter(fmt)
+        log.addHandler(console)
     log.addHandler(file)
+
+
+CRASH_LOG_MAX = 1024 * 1024
+_crash_file = None  # offen halten: faulthandler schreibt bei einem harten Absturz direkt hinein
+
+
+def capture_crashes(log_dir: Path, name: str, log_exit: bool = False) -> Path:
+    """Abstürze nachvollziehbar machen, auch ohne Konsolenfenster (pythonw.exe unter Windows).
+
+    - Unbehandelte Fehler (Hauptprogramm und Threads) landen mit Traceback in rewards.log.
+    - Ausgaben auf stdout/stderr, die sonst ins Leere gehen, und harte Abstürze des Python-Prozesses
+      (faulthandler) landen in logs/<name>-crash.log.
+    - log_exit: normales Ende in rewards.log vermerken (Webinterface). Fehlt der Eintrag, wurde der Prozess
+      von außen beendet (Task-Manager, Abmelden, Virenscanner) oder ist hart abgestürzt -> <name>-crash.log.
+    """
+    global _crash_file
+    log_dir.mkdir(parents=True, exist_ok=True)
+    path = log_dir / f"{name}-crash.log"
+    try:
+        if path.exists() and path.stat().st_size > CRASH_LOG_MAX:
+            path.replace(path.with_name(path.name + ".old"))
+        _crash_file = open(path, "a", encoding="utf-8", errors="backslashreplace", buffering=1)
+        _crash_file.write(f"--- {name} gestartet {datetime.now():%Y-%m-%d %H:%M:%S} (PID {os.getpid()}) ---\n")
+        if sys.stdout is None:
+            sys.stdout = _crash_file
+        if sys.stderr is None:
+            sys.stderr = _crash_file
+        faulthandler.enable(file=_crash_file)
+    except OSError as e:
+        log.warning("Absturzprotokoll %s nicht nutzbar: %s", path, e)
+
+    def excepthook(exc_type, exc, tb):
+        if not issubclass(exc_type, KeyboardInterrupt):
+            log.critical("%s abgestürzt – unbehandelter Fehler", name, exc_info=(exc_type, exc, tb))
+        sys.__excepthook__(exc_type, exc, tb)
+
+    def thread_excepthook(args):
+        if args.exc_type is not SystemExit:
+            thread = args.thread.name if args.thread else "?"
+            log.error("Unbehandelter Fehler im Thread %s", thread,
+                      exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+
+    sys.excepthook = excepthook
+    threading.excepthook = thread_excepthook
+    if log_exit:
+        atexit.register(lambda: log.info("%s beendet (PID %s)", name, os.getpid()))
+    return path
 
 
 # Frühere Vorgaben in config.json, die ein Update nicht ersetzen konnte (der Updater bis 1.1.1 behielt immer den

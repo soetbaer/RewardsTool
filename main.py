@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 
 from rewards import activities, claim, dashboard, forecast, quests, runstate, searches, settings, visualsearch
 from rewards.browser import open_context
-from rewards.util import BING, LOGIN_HINT, load_config, log, setup_logging
+from rewards.util import BING, LOGIN_HINT, capture_crashes, load_config, log, setup_logging
 
 BASE = Path(__file__).parent
 DELAY_MIN, DELAY_MAX = settings.SEARCH_DELAY_MIN, settings.SEARCH_DELAY_MAX
@@ -322,6 +322,7 @@ def main():
     args = parser.parse_args()
 
     setup_logging(BASE / "logs")
+    capture_crashes(BASE / "logs", "main")
     cfg = load_config(BASE / "config.json")
     cfg["search"]["delay"] = settings.search_delay_max(cfg)
     try:
